@@ -1,0 +1,37 @@
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@mixin flex-column {
+  display: flex;
+  flex-direction: column;
+}
+
+@mixin glass-effect {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+@mixin transition($prop: all, $time: 0.2s, $ease: cubic-bezier(0.4, 0, 0.2, 1)) {
+  transition: $prop $time $ease;
+}
+
+@mixin mobile {
+  @media (max-width: 768px) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (max-width: 1024px) {
+    @content;
+  }
+}

@@ -1,0 +1,77 @@
+/* Centralized Dropdown Design System */
+
+.dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  z-index: 1000;
+  min-width: 200px;
+  overflow: hidden;
+  animation: slideInUp 0.2s ease-out;
+  padding: 4px;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: none;
+  border: none;
+  color: var(--text-main);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  border-radius: 8px;
+  
+  &:hover {
+    background: var(--bg-main);
+    color: var(--primary);
+  }
+  
+  &.danger:hover {
+    background: #FEF2F2;
+    color: var(--danger);
+  }
+  
+  .dropdown-icon {
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  &:hover .dropdown-icon {
+    color: inherit;
+  }
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 4px;
+}
+
+/* Custom Select Specifics */
+.custom-select {
+    position: relative;
+    width: 100%;
+}
+
+@keyframes slideInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}

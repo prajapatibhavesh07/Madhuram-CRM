@@ -1,0 +1,141 @@
+/* Interview List Specific Styles */
+
+.interview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.interview-header-info h3 {
+    margin-top: 0;
+    margin-bottom: 4px;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.interview-header-info p {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.875rem;
+}
+
+.interview-header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.search-wrapper {
+    position: relative;
+    width: 280px;
+}
+
+/* Card View Specifics */
+.interview-card {
+    @extend .modern-card;
+    gap: 1.25rem;
+    padding: 1.5rem;
+}
+
+.card-candidate-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.card-candidate-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--primary-light);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.25rem;
+}
+
+.card-candidate-name {
+    margin: 0;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.card-job-title {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.8125rem;
+    margin-top: 2px;
+}
+
+.card-details-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    background: var(--bg-main);
+    padding: 1rem;
+    border-radius: 12px;
+}
+
+.card-detail-item label {
+    display: block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    color: var(--text-placeholder);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+}
+
+.card-detail-item span {
+    font-weight: 700;
+    font-size: 0.875rem;
+    color: var(--text-main);
+}
+
+/* Modal Banner Specifics */
+.modal-candidate-banner {
+    padding: 1.25rem;
+    background: var(--bg-main);
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-candidate-label {
+    font-size: 0.6875rem;
+    color: var(--text-placeholder);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    margin-bottom: 2px;
+}
+
+.modal-candidate-value {
+    font-weight: 800;
+    font-size: 1.25rem;
+    color: var(--text-main);
+}
+
+.modal-job-value {
+    font-size: 0.875rem;
+    color: var(--primary);
+    font-weight: 700;
+}
+
+.empty-state-message {
+    padding: 4rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 1rem;
+    background: #ffffff;
+    border-radius: 16px;
+    border: 1px solid var(--border-color);
+}

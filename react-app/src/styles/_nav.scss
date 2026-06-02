@@ -1,0 +1,41 @@
+/* Navigation */
+.profile-top-navbar {
+  height: 50px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  flex-shrink: 0;
+}
+
+.nav-icon-btn {
+  color: #64748b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+
+  &:hover {
+    background: #f1f5f9;
+    color: #3b82f6;
+  }
+}
+
+.nav-left-actions, .nav-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-icon-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-left: 12px;
+  border-left: 1px solid #f1f5f9;
+}

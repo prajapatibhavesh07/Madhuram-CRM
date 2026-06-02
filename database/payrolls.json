@@ -1,0 +1,25 @@
+{
+  "name": "payrolls",
+  "indexes": [
+    {
+      "v": 2,
+      "key": {
+        "_id": 1
+      },
+      "name": "_id_"
+    },
+    {
+      "v": 2,
+      "key": {
+        "userId": 1,
+        "month": 1,
+        "year": 1
+      },
+      "name": "userId_1_month_1_year_1",
+      "background": true,
+      "unique": true
+    }
+  ],
+  "validation": null,
+  "collation": null
+}

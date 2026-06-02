@@ -1,0 +1,157 @@
+.payroll-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.payroll-header__title {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+}
+
+.payroll-header__subtitle {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.payroll-header__actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.payroll-filters {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.payroll-filter-select {
+    padding: 0.55rem;
+    font-size: 0.85rem;
+    width: 130px;
+    margin: 0;
+}
+
+.payroll-filter-select--year {
+    width: 100px;
+}
+
+.payroll-search-input {
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+    width: 180px;
+}
+
+.payroll-month-year {
+    color: #64748b;
+    font-size: 0.8125rem;
+}
+
+.payroll-salary-text {
+    font-weight: 600;
+    color: #10b981;
+}
+
+/* Modal Form */
+.salary-components-title {
+    margin: 0;
+    font-size: 0.7rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+}
+
+/* Payslip Modal */
+.payslip-summary-box {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(122, 143, 19, 0.05);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+}
+
+.payslip-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+.payslip-value {
+    font-weight: 700;
+    color: var(--text-main);
+}
+
+.payslip-value--bold {
+    font-weight: 600;
+}
+
+.payslip-section-title {
+    margin: 0;
+    font-size: 0.8rem;
+    color: var(--primary);
+    text-transform: uppercase;
+    font-weight: 800;
+    letter-spacing: 0.025em;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.payslip-section-title--deductions {
+    color: #ef4444;
+}
+
+.payslip-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.25rem 0;
+    font-size: 0.9rem;
+}
+
+.payslip-row--total {
+    padding: 0.75rem 0;
+    font-weight: 700;
+    border-top: 1px dashed var(--border);
+    margin-top: 0.25rem;
+    font-size: 1rem;
+}
+
+.payslip-net-box {
+    background: rgba(16, 185, 129, 0.1);
+    padding: 1rem;
+    border-radius: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.5rem;
+    border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.payslip-net-label {
+    font-weight: 800;
+    color: #059669;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.payslip-net-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #059669;
+}

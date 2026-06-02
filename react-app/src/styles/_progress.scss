@@ -1,0 +1,49 @@
+/* Progress Stepper */
+.progress-stepper {
+  display: flex;
+  justify-content: space-between;
+  padding: 1.5rem 1rem;
+  position: relative;
+  overflow-x: auto;
+}
+
+.step-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  flex: 1;
+  z-index: 1;
+  min-width: 70px;
+
+  &.completed .circle {
+    background: #10b981;
+    border-color: #10b981;
+    color: #ffffff;
+  }
+
+  &.current .circle {
+    border-color: #3b82f6;
+    color: #3b82f6;
+    transform: scale(1.1);
+  }
+
+  &.rejected .circle {
+    background: #ef4444;
+    border-color: #ef4444;
+    color: #ffffff;
+  }
+}
+
+.circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #cbd5e1;
+  transition: all 0.3s;
+}

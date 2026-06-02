@@ -1,0 +1,142 @@
+.leave-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.leave-header__title {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+}
+
+.leave-header__subtitle {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.leave-header__actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.leave-search-wrapper {
+    position: relative;
+    width: auto;
+}
+
+.leave-search-input {
+    padding: 0.6rem 1rem 0.6rem 2.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-main);
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.leave-search-icon {
+    position: absolute;
+    left: 0.85rem;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-muted);
+    display: flex;
+}
+
+.leave-balances-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.leave-balance-card {
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.leave-balance-title {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.leave-balance-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-top: 0.25rem;
+}
+
+.leave-balance-footer {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.leave-tabs {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.5rem;
+}
+
+.leave-tab-btn {
+    background: none;
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.leave-tab-btn--active {
+    border-bottom-color: var(--primary);
+    color: var(--primary);
+    font-weight: 600;
+}
+
+.leave-type-text {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.leave-reason-cell {
+    max-width: 200px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.leave-status-badge {
+    /* Base styles inherited from status-indicator */
+}
+
+.leave-actions-cell {
+    display: flex;
+    gap: 0.8rem;
+}
+
+.leave-modal-footer {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.leave-modal-btn-cancel {
+    width: auto;
+    padding: 0.6rem 1.5rem;
+}
+
+.leave-modal-btn-submit {
+    width: auto;
+    padding: 0.6rem 2rem;
+}
+
+.leave-textarea {
+    resize: none;
+}

@@ -1,0 +1,24 @@
+/* Login & Signup Specifics */
+.password-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-toggle {
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  position: absolute;
+  right: 1rem;
+
+  &:hover {
+    color: var(--text-main);
+  }
+}

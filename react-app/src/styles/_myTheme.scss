@@ -1,0 +1,59 @@
+/* Theme Variables */
+$primary: #2563EB;
+$primary-hover: #1D4ED8;
+$secondary: #96C2FF;
+$accent: #199DFF;
+$btn-primary: #2563EB;
+$primary-light: #EFF6FF;
+
+$success: #10B981;
+$success-hover: #059669;
+$danger: #EF4444;
+$danger-hover: #DC2626;
+$warning: #F59E0B;
+
+$bg-main: #F8FAFC;
+$bg-sidebar: #FFFFFF;
+$bg-card: #FFFFFF;
+$bg-input: #FFFFFF;
+
+$text-main: #0F172A;
+$text-muted: #64748B;
+$text-placeholder: #94A3B8;
+
+$border-color: #E2E8F0;
+$border-hover: #CBD5E1;
+$border-radius: 8px;
+$input-height: 42px;
+$border: rgba(15, 23, 42, 0.12);
+
+/* CSS Variable counterparts for compatibility */
+:root {
+  --primary: #{$primary};
+  --primary-hover: #{$primary-hover};
+  --secondary: #{$secondary};
+  --accent: #{$accent};
+  --btn-primary: #{$btn-primary};
+  --primary-light: #{$primary-light};
+
+  --success: #{$success};
+  --success-hover: #{$success-hover};
+  --danger: #{$danger};
+  --danger-hover: #{$danger-hover};
+  --warning: #{$warning};
+
+  --bg-main: #{$bg-main};
+  --bg-sidebar: #{$bg-sidebar};
+  --bg-card: #{$bg-card};
+  --bg-input: #{$bg-input};
+
+  --text-main: #{$text-main};
+  --text-muted: #{$text-muted};
+  --text-placeholder: #{$text-placeholder};
+
+  --border-color: #{$border-color};
+  --border-hover: #{$border-hover};
+  --border-radius: #{$border-radius};
+  --input-height: #{$input-height};
+  --border: #{$border};
+}

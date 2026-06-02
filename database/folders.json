@@ -1,0 +1,23 @@
+{
+  "name": "folders",
+  "indexes": [
+    {
+      "v": 2,
+      "key": {
+        "_id": 1
+      },
+      "name": "_id_"
+    },
+    {
+      "v": 2,
+      "key": {
+        "parentFolder": 1,
+        "name": 1
+      },
+      "name": "parentFolder_1_name_1",
+      "background": true
+    }
+  ],
+  "validation": null,
+  "collation": null
+}

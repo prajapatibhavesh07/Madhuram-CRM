@@ -1,0 +1,57 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+react-app/log_output.txt
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# Build output
+react-app/dist/
+react-app/dist-ssr/
+react-app/build/
+
+# Editor and OS files
+.vscode/
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Uploads and attachments (avoid committing user uploaded files)
+express-mongo-backend/uploads/resumes/*
+express-mongo-backend/uploads/recordings/*
+express-mongo-backend/uploads/logos/*
+!express-mongo-backend/uploads/resumes/.gitkeep
+!express-mongo-backend/uploads/recordings/.gitkeep
+!express-mongo-backend/uploads/logos/.gitkeep
+
+# Temporary/scratch files
+express-mongo-backend/scratch_*.js
+react-app/src/pages/check_*.js
+react-app/src/pages/check_*.cjs

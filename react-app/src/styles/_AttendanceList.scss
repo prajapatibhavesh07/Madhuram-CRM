@@ -1,0 +1,114 @@
+/* Attendance List Specific Styles */
+
+.attendance-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.attendance-header__title {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.attendance-header__subtitle {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.9rem;
+}
+
+.attendance-header__actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.attendance-search-wrapper {
+    position: relative;
+    width: auto;
+}
+
+.attendance-punch-status {
+    color: var(--success);
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.attendance-punch-completed {
+    padding: 0.5rem 1rem;
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success);
+    border-radius: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.attendance-filter-bar {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+    background: #ffffff;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    align-items: center;
+}
+
+.attendance-filter-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.attendance-tabs {
+    margin-bottom: 1.5rem;
+    display: flex;
+    gap: 2rem;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.5rem;
+}
+
+.attendance-tab-btn {
+    background: none;
+    border: none;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.9375rem;
+    transition: all 0.2s;
+    
+    &:hover {
+        color: var(--text-main);
+    }
+}
+
+.attendance-tab-btn--active {
+    border-bottom-color: var(--primary);
+    color: var(--primary);
+}
+
+.attendance-emp-id {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.attendance-dept {
+    color: var(--text-main);
+    font-weight: 700;
+}
+
+.attendance-status-label {
+    font-size: 0.7rem;
+}
+
+.attendance-logout-text {
+    color: var(--text-muted);
+}

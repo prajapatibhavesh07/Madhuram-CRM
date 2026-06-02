@@ -1,0 +1,21 @@
+/* Error: compound selectors may no longer be extended.
+ * Consider `@extend .danger, :hover` instead.
+ * See https://sass-lang.com/d/extend-compound for details.
+ * 
+ *     ,
+ * 173 |     @extend .danger:hover;
+ *     |             ^^^^^^^^^^^^^
+ *     '
+ *   src\styles\_button.scss 173:13  @import
+ *   src\styles\main.scss 11:9       root stylesheet */
+
+body::before {
+  font-family: "Source Code Pro", "SF Mono", Monaco, Inconsolata, "Fira Mono",
+      "Droid Sans Mono", monospace, monospace;
+  white-space: pre;
+  display: block;
+  padding: 1em;
+  margin-bottom: 1em;
+  border-bottom: 2px solid black;
+  content: "Error: compound selectors may no longer be extended.\a Consider `@extend .danger, :hover` instead.\aSee https://sass-lang.com/d/extend-compound for details.\a\a     \2577 \a 173 \2502      @extend .danger:hover;\a     \2502              ^^^^^^^^^^^^^\a     \2575 \a   src\\styles\\_button.scss 173:13  @import\a   src\\styles\\main.scss 11:9       root stylesheet";
+}
