@@ -21,6 +21,7 @@ interface User {
     _id: string;
     name: string;
     role: string;
+    status?: string;
 }
 interface Ticket {
     ticketNo: string;
@@ -2358,7 +2359,7 @@ const CandidateList = () => {
                         >
                             <option value="">Select Recruiter/Manager</option>
                             {users
-                                .filter(u => ['Recruiter', 'Team Lead', 'Manager'].includes(u.role))
+                                .filter(u => u.status === 'Active' && u.role !== 'Normal User' && u.role !== 'Super Admin')
                                 .map(u => (
                                     <option key={u._id} value={u._id}>{u.name} ({u.role})</option>
                                 ))
