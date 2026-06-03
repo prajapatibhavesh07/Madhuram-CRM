@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth, type UserRole } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 import { api, BASE_URL } from '../services/api';
 import UserViewModal from '../components/UserViewModal';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
@@ -32,7 +32,7 @@ interface UserData {
     username: string;
     name: string;
     email: string;
-    role: UserRole;
+    role: string;
     status: 'Active' | 'Inactive';
     createdAt: string;
     lastLogin: string;
@@ -190,8 +190,8 @@ const UserList = () => {
         currentPage * itemsPerPage
     );
 
-    const getRoleBadgeClass = (role: UserRole) => {
-        const classes: Record<UserRole, string> = {
+    const getRoleBadgeClass = (role: string) => {
+        const classes: Record<string, string> = {
             'Super Admin': 'role-super-admin',
             'Admin': 'role-admin',
             'HR': 'role-hr',
@@ -200,7 +200,7 @@ const UserList = () => {
             'Recruiter': 'role-recruiter',
             'Normal User': 'role-normal-user'
         };
-        return `role-badge ${classes[role] || ''}`;
+        return `role-badge ${classes[role] || 'role-custom'}`;
     };
 
     return (

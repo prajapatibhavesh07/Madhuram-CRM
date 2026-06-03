@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Role = require("../models/Role");
 const auditService = require("../services/auditService");
 const path = require("path");
 
@@ -34,6 +35,15 @@ exports.createUser = async (req, res) => {
         }
 
         const userData = { ...req.body };
+        if (userData.customRoleId === "" || userData.customRoleId === "null" || userData.customRoleId === "undefined") {
+            userData.customRoleId = null;
+        }
+        if (userData.role && !userData.customRoleId) {
+            const customRole = await Role.findOne({ name: userData.role, isBuiltIn: false });
+            if (customRole) {
+                userData.customRoleId = customRole._id;
+            }
+        }
         if (req.file) {
             userData.profilePhoto = `/uploads/profiles/${req.file.filename}`;
         }
@@ -114,6 +124,15 @@ exports.updateUser = async (req, res) => {
         if (!oldUser) return res.status(404).json({ message: "User find failed for audit" });
 
         const updateData = { ...req.body };
+        if (updateData.customRoleId === "" || updateData.customRoleId === "null" || updateData.customRoleId === "undefined") {
+            updateData.customRoleId = null;
+        }
+        if (updateData.role && !updateData.customRoleId) {
+            const customRole = await Role.findOne({ name: updateData.role, isBuiltIn: false });
+            if (customRole) {
+                updateData.customRoleId = customRole._id;
+            }
+        }
         if (req.file) {
             updateData.profilePhoto = `/uploads/profiles/${req.file.filename}`;
         }

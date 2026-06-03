@@ -216,6 +216,12 @@
         color: #64748b;
         border: 1px solid #e2e8f0;
     }
+
+    &.role-custom {
+        background: #eff6ff;
+        color: var(--primary);
+        border: 1px solid rgba(37, 99, 235, 0.15);
+    }
 }
 
 .employee-id-text {

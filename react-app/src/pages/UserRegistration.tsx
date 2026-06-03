@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { type UserRole, type Role } from '../context/AuthContext';
+import { type Role } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api, BASE_URL } from '../services/api';
 import { UsersIcon, UserIcon, MailIcon, PhoneIcon, ShieldIcon, FileTextIcon, BriefcaseIcon, CalendarIcon, PlusIcon, TrashIcon, UploadIcon } from '../icons';
@@ -12,7 +12,7 @@ const UserRegistration = () => {
     const [name, setName] = useState('');
     const [username, setUsername] = useState('');
     const [email, setEmail] = useState('');
-    const [role, setRole] = useState<UserRole>('Normal User');
+    const [role, setRole] = useState<string>('Normal User');
     const [customRoleId, setCustomRoleId] = useState('');
     const [managerId, setManagerId] = useState('');
     const [teamLeadId, setTeamLeadId] = useState('');
@@ -278,41 +278,38 @@ const UserRegistration = () => {
                                             <div className="input-with-icon-modern">
                                                 <UsersIcon size={18} />
                                                 <select
-                                                    value={role}
+                                                    value={customRoleId || role}
                                                     onChange={(e) => {
-                                                        setRole(e.target.value as UserRole);
-                                                        setCustomRoleId('');
+                                                        const val = e.target.value;
+                                                        const isCustom = customRoles.some(cr => cr._id === val);
+                                                        if (isCustom) {
+                                                            setCustomRoleId(val);
+                                                            const crole = customRoles.find(cr => cr._id === val);
+                                                            setRole(crole ? crole.name : 'Normal User');
+                                                        } else {
+                                                            setCustomRoleId('');
+                                                            setRole(val);
+                                                        }
                                                     }}
                                                 >
-                                                    <option value="Admin">Admin</option>
-                                                    <option value="HR">HR</option>
-                                                    <option value="Manager">Manager</option>
-                                                    <option value="Team Lead">Team Lead</option>
-                                                    <option value="Recruiter">Recruiter</option>
-                                                    <option value="Normal User">Normal User</option>
+                                                    <optgroup label="Default Roles">
+                                                        <option value="Admin">Admin</option>
+                                                        <option value="HR">HR</option>
+                                                        <option value="Manager">Manager</option>
+                                                        <option value="Team Lead">Team Lead</option>
+                                                        <option value="Recruiter">Recruiter</option>
+                                                        <option value="Normal User">Normal User</option>
+                                                    </optgroup>
+                                                    {customRoles.length > 0 && (
+                                                        <optgroup label="Custom Roles">
+                                                            {customRoles.map(cr => (
+                                                                <option key={cr._id} value={cr._id}>{cr.name}</option>
+                                                            ))}
+                                                        </optgroup>
+                                                    )}
                                                 </select>
                                             </div>
                                         </div>
-
-                                        {customRoles.length > 0 && (
-                                            <div className="modern-input-group">
-                                                <label>Custom Role (Optional)</label>
-                                                <div className="input-with-icon-modern">
-                                                    <UsersIcon size={18} />
-                                                    <select
-                                                        value={customRoleId}
-                                                        onChange={(e) => {
-                                                            setCustomRoleId(e.target.value);
-                                                        }}
-                                                    >
-                                                        <option value="">Select Custom Role</option>
-                                                        {customRoles.map(cr => (
-                                                            <option key={cr._id} value={cr._id}>{cr.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        )}
 
                                         {role === 'Team Lead' && (
                                             <div className="modern-input-group">
