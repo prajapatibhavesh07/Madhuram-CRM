@@ -2,6 +2,7 @@ const Task = require('../models/Task');
 const TaskComment = require('../models/TaskComment');
 const auditService = require('../services/auditService');
 const notificationService = require('../services/notificationService');
+const { getSubordinateIds } = require('../middleware/roleMiddleware');
 
 exports.createTask = async (req, res) => {
     try {
@@ -45,27 +46,16 @@ exports.getTasks = async (req, res) => {
         // Role-based visibility logic
         if (role === 'Admin' || role === 'Super Admin') {
             // Can see everything
-        } else if (role === 'Manager') {
-            // See own tasks + tasks of users who have this managerId
-            const User = require('../models/User');
-            const subordinates = await User.find({ managerId: _id }).select('_id');
-            const subordinateIds = subordinates.map(s => s._id);
-            filters.$or = [
-                { assignedTo: _id },
-                { assignedTo: { $in: subordinateIds } }
-            ];
-        } else if (role === 'Team Lead') {
-            // See own tasks + tasks of users who have this teamLeadId
-            const User = require('../models/User');
-            const subordinates = await User.find({ teamLeadId: _id }).select('_id');
-            const subordinateIds = subordinates.map(s => s._id);
-            filters.$or = [
-                { assignedTo: _id },
-                { assignedTo: { $in: subordinateIds } }
-            ];
         } else {
-            // Recruiter, HR, Normal User only see assigned tasks
-            filters.assignedTo = _id;
+            const subordinateIds = await getSubordinateIds(_id);
+            if (subordinateIds.length > 0) {
+                filters.$or = [
+                    { assignedTo: _id },
+                    { assignedTo: { $in: subordinateIds } }
+                ];
+            } else {
+                filters.assignedTo = _id;
+            }
         }
 
         // Apply additional query filters

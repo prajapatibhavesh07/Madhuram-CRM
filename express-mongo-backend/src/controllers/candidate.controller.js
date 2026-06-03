@@ -9,6 +9,7 @@ const Folder = require("../models/Folder");
 const File = require("../models/File");
 const User = require('../models/User');
 const notificationService = require('../services/notificationService');
+const { getSubordinateIds } = require('../middleware/roleMiddleware');
 
 const getOrCreateCandidateFolder = async (candidate, userId) => {
     try {
@@ -337,17 +338,21 @@ exports.getCandidates = async (req, res) => {
             const assignedTasks = await Task.find({ assignedTo: _id, candidate: { $exists: true, $ne: null } }).select('candidate');
             const candidateIdsFromTasks = assignedTasks.map(t => t.candidate);
 
+            // Get subordinates
+            const subordinateIds = await getSubordinateIds(_id);
+            const allowedUserIds = [_id, ...subordinateIds];
+
             // Non-admin users can see:
-            // 1. Candidates they created (createdBy = _id)
+            // 1. Candidates they or their subordinates created (createdBy in allowedUserIds)
             // 2. Candidates assigned to them via tasks
             if (candidateIdsFromTasks.length > 0) {
                 query.$or = [
-                    { createdBy: _id },
+                    { createdBy: { $in: allowedUserIds } },
                     { _id: { $in: candidateIdsFromTasks } }
                 ];
             } else {
-                // No assigned tasks, only show self-created candidates
-                query.createdBy = _id;
+                // No assigned tasks, show self-created and subordinate candidates
+                query.createdBy = { $in: allowedUserIds };
             }
         }
 

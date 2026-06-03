@@ -119,6 +119,34 @@ const BUILT_IN_PERMISSIONS = {
     }
 };
 
+const getModuleNameFromUrl = (baseUrl) => {
+    if (!baseUrl) return null;
+    if (baseUrl.includes('/candidates')) return 'candidates';
+    if (baseUrl.includes('/jobs')) return 'jobs';
+    if (baseUrl.includes('/operations')) return 'operations';
+    if (baseUrl.includes('/tasks')) return 'tasks';
+    if (baseUrl.includes('/call-history') || baseUrl.includes('/chat')) return 'callHistory';
+    if (baseUrl.includes('/offers')) return 'offers';
+    if (baseUrl.includes('/users')) return 'users';
+    if (baseUrl.includes('/attendance')) return 'attendance';
+    if (baseUrl.includes('/leaves')) return 'leaves';
+    if (baseUrl.includes('/payroll')) return 'payroll';
+    if (baseUrl.includes('/files') || baseUrl.includes('/folders')) return 'fileManager';
+    if (baseUrl.includes('/settings')) return 'settings';
+    if (baseUrl.includes('/roles')) return 'roles';
+    if (baseUrl.includes('/dashboard')) return 'dashboard';
+    return null;
+};
+
+const getActionFromMethod = (method) => {
+    const m = method.toUpperCase();
+    if (m === 'GET') return 'view';
+    if (m === 'POST') return 'create';
+    if (m === 'PUT' || m === 'PATCH') return 'edit';
+    if (m === 'DELETE') return 'delete';
+    return 'view';
+};
+
 const getUserPermissions = async (user) => {
     if (!user) return null;
     
@@ -127,7 +155,8 @@ const getUserPermissions = async (user) => {
             const role = await Role.findById(user.customRoleId);
             if (role) {
                 const permissions = {};
-                for (const [key, value] of Object.entries(role.permissions)) {
+                const permissionsObj = role.permissions.toJSON ? role.permissions.toJSON() : role.permissions;
+                for (const [key, value] of Object.entries(permissionsObj)) {
                     permissions[key] = value;
                 }
                 return permissions;
@@ -149,8 +178,17 @@ const authorize = (allowedRoles) => {
 
             if (!allowedRoles.includes(req.user.role)) {
                 const permissions = await getUserPermissions(req.user);
-                if (!permissions || !permissions.roles || !permissions.roles.view) {
-                    return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role}` });
+                const moduleName = getModuleNameFromUrl(req.baseUrl);
+                const action = getActionFromMethod(req.method);
+                
+                if (moduleName && permissions && permissions[moduleName]) {
+                    if (!permissions[moduleName][action]) {
+                        return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role} on ${moduleName}` });
+                    }
+                } else {
+                    if (!permissions || !permissions.roles || !permissions.roles.view) {
+                        return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role}` });
+                    }
                 }
             }
 
@@ -191,8 +229,39 @@ const authorizeModule = (moduleName, action = 'view') => {
     };
 };
 
+const getSubordinateIds = async (userId) => {
+    try {
+        let allSubordinateIds = [];
+        let currentLevelIds = [userId];
+        
+        while (currentLevelIds.length > 0) {
+            const subordinates = await User.find({
+                $or: [
+                    { managerId: { $in: currentLevelIds } },
+                    { teamLeadId: { $in: currentLevelIds } }
+                ],
+                _id: { $nin: [userId, ...allSubordinateIds] }
+            }).select('_id');
+            
+            if (subordinates.length === 0) {
+                break;
+            }
+            
+            const nextLevelIds = subordinates.map(s => s._id);
+            allSubordinateIds = allSubordinateIds.concat(nextLevelIds);
+            currentLevelIds = nextLevelIds;
+        }
+        
+        return allSubordinateIds;
+    } catch (error) {
+        console.error('Error fetching subordinate IDs:', error);
+        return [];
+    }
+};
+
 module.exports = authorize;
 module.exports.authorizeModule = authorizeModule;
 module.exports.getUserPermissions = getUserPermissions;
 module.exports.BUILT_IN_PERMISSIONS = BUILT_IN_PERMISSIONS;
 module.exports.MODULE_PERMISSIONS = MODULE_PERMISSIONS;
+module.exports.getSubordinateIds = getSubordinateIds;

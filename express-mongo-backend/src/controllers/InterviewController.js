@@ -2,6 +2,7 @@ const Interview = require('../models/Interview');
 const auditService = require('../services/auditService');
 const notificationService = require('../services/notificationService');
 const Candidate = require('../models/Candidate');
+const { getSubordinateIds } = require('../middleware/roleMiddleware');
 
 exports.scheduleInterview = async (req, res) => {
     try {
@@ -54,9 +55,11 @@ exports.getInterviews = async (req, res) => {
     try {
         const filters = {};
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
+            const subordinateIds = await getSubordinateIds(req.user._id);
+            const allowedUserIds = [req.user._id, ...subordinateIds];
             filters.$or = [
-                { interviewerId: req.user._id },
-                { createdBy: req.user._id }
+                { interviewerId: { $in: allowedUserIds } },
+                { createdBy: { $in: allowedUserIds } }
             ];
         }
         
