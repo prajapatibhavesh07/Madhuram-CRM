@@ -1,6 +1,58 @@
 const Leave = require('../models/Leave');
 const LeaveBalance = require('../models/LeaveBalance');
 
+const calculateLeaveDays = (startDate, endDate, settings) => {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const workingDays = (settings && settings.attendance && settings.attendance.workingDays) 
+        || ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const enableSandwichRule = !!(settings && settings.leavePolicy && settings.leavePolicy.enableSandwichRule);
+    
+    const days = [];
+    let curr = new Date(start);
+    while (curr <= end) {
+        days.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+    }
+    
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    let count = 0;
+    
+    for (let i = 0; i < days.length; i++) {
+        const day = days[i];
+        const dayOfWeek = dayNames[day.getDay()];
+        const isWorkingDay = workingDays.includes(dayOfWeek);
+        
+        if (isWorkingDay) {
+            count++;
+        } else {
+            if (enableSandwichRule) {
+                let hasWorkingBefore = false;
+                for (let j = 0; j < i; j++) {
+                    const beforeDayOfWeek = dayNames[days[j].getDay()];
+                    if (workingDays.includes(beforeDayOfWeek)) {
+                        hasWorkingBefore = true;
+                        break;
+                    }
+                }
+                let hasWorkingAfter = false;
+                for (let j = i + 1; j < days.length; j++) {
+                    const afterDayOfWeek = dayNames[days[j].getDay()];
+                    if (workingDays.includes(afterDayOfWeek)) {
+                        hasWorkingAfter = true;
+                        break;
+                    }
+                }
+                if (hasWorkingBefore && hasWorkingAfter) {
+                    count++;
+                }
+            }
+        }
+    }
+    return count;
+};
+
 exports.applyLeave = async (req, res) => {
     try {
         if (!req.user) return res.status(401).json({ message: "Authentication required" });
@@ -21,8 +73,13 @@ exports.applyLeave = async (req, res) => {
             return res.status(400).json({ message: 'Invalid date format' });
         }
 
-        const diffTime = Math.abs(end - start);
-        const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // Inclusive
+        const Settings = require('../models/Settings');
+        const settings = await Settings.findOne();
+
+        const daysCount = calculateLeaveDays(startDate, endDate, settings);
+        if (daysCount === 0) {
+            return res.status(400).json({ message: 'No working days or sandwich leaves in the selected date range.' });
+        }
 
         // Check Balance
         const currentYear = new Date().getFullYear();
@@ -30,7 +87,13 @@ exports.applyLeave = async (req, res) => {
 
         if (!balance) {
             // Create default balance if not exists
-            balance = new LeaveBalance({ userId, year: currentYear });
+            balance = new LeaveBalance({ 
+                userId, 
+                year: currentYear,
+                casualLeave: settings?.leavePolicy?.casualLeaveDays ?? 12,
+                sickLeave: settings?.leavePolicy?.sickLeaveDays ?? 12,
+                earnedLeave: settings?.leavePolicy?.earnedLeaveDays ?? 0
+            });
             await balance.save();
         }
 
@@ -45,9 +108,53 @@ exports.applyLeave = async (req, res) => {
         const balanceKey = typeMap[type];
         if (balanceKey) {
             const usedAmount = balance.used && balance.used[balanceKey] ? balance.used[balanceKey] : 0;
-            const available = (balance[balanceKey] || 0) - usedAmount;
+            let limit = balance[balanceKey] || 0;
+            
+            if (settings && settings.leavePolicy) {
+                if (balanceKey === 'casualLeave' && settings.leavePolicy.casualLeaveDays !== undefined) {
+                    limit = settings.leavePolicy.casualLeaveDays;
+                } else if (balanceKey === 'sickLeave' && settings.leavePolicy.sickLeaveDays !== undefined) {
+                    limit = settings.leavePolicy.sickLeaveDays;
+                } else if (balanceKey === 'earnedLeave' && settings.leavePolicy.earnedLeaveDays !== undefined) {
+                    limit = settings.leavePolicy.earnedLeaveDays;
+                }
+            }
+            
+            const available = limit - usedAmount;
             if (available < daysCount) {
                 return res.status(400).json({ message: `Insufficient ${type} balance. Available: ${available}` });
+            }
+        } else {
+            // For Maternity, Paternity, or Custom Leave Types
+            let limit = 0;
+            if (settings && settings.leavePolicy) {
+                if (type === 'Maternity Leave') {
+                    limit = settings.leavePolicy.maternityLeaveDays ?? 90;
+                } else if (type === 'Paternity Leave') {
+                    limit = settings.leavePolicy.paternityLeaveDays ?? 15;
+                } else if (settings.leavePolicy.customLeaveTypes) {
+                    const customType = settings.leavePolicy.customLeaveTypes.find(c => c.name === type);
+                    if (customType) {
+                        limit = customType.days;
+                    }
+                }
+            }
+            
+            if (limit > 0) {
+                // Calculate used days for this leave type in the current year (including approved and pending to prevent double-booking)
+                const approvedLeaves = await Leave.find({
+                    userId,
+                    type,
+                    status: { $in: ['Approved', 'Pending'] },
+                    startDate: { $gte: new Date(currentYear, 0, 1) }
+                });
+                
+                const usedDays = approvedLeaves.reduce((sum, l) => sum + l.daysCount, 0);
+                const available = limit - usedDays;
+                
+                if (available < daysCount) {
+                    return res.status(400).json({ message: `Insufficient ${type} balance. Available: ${available}` });
+                }
             }
         }
 

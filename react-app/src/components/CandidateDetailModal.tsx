@@ -64,7 +64,11 @@ export interface Candidate {
     noticePeriod?: string;
     aiScore?: number;
     aiSummary?: string;
-    aiMatchBasis?: string;
+    aiMatchBasis?: string | {
+        matchReason?: string;
+        skillFit?: string;
+        experienceGap?: string;
+    };
     avatarUrl?: string;
     willingToRelocate?: boolean;
 }
@@ -286,7 +290,30 @@ const CandidateDetailModal: React.FC<CandidateDetailModalProps> = ({
                     {candidate.aiMatchBasis && (
                         <div className="report-section-box">
                             <h3 className="section-title">Match Analysis</h3>
-                            <p className="ai-summary-content">{candidate.aiMatchBasis}</p>
+                            {typeof candidate.aiMatchBasis === 'object' ? (
+                                <div className="ai-match-basis-details" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                    {candidate.aiMatchBasis.matchReason && (
+                                        <div>
+                                            <strong style={{ fontSize: '0.85rem', color: '#475569' }}>Match Reason:</strong>
+                                            <p className="ai-summary-content" style={{ marginTop: '4px' }}>{candidate.aiMatchBasis.matchReason}</p>
+                                        </div>
+                                    )}
+                                    {candidate.aiMatchBasis.skillFit && (
+                                        <div>
+                                            <strong style={{ fontSize: '0.85rem', color: '#475569' }}>Skill Fit:</strong>
+                                            <p className="ai-summary-content" style={{ marginTop: '4px' }}>{candidate.aiMatchBasis.skillFit}</p>
+                                        </div>
+                                    )}
+                                    {candidate.aiMatchBasis.experienceGap && (
+                                        <div>
+                                            <strong style={{ fontSize: '0.85rem', color: '#475569' }}>Experience Gap:</strong>
+                                            <p className="ai-summary-content" style={{ marginTop: '4px' }}>{candidate.aiMatchBasis.experienceGap}</p>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="ai-summary-content">{candidate.aiMatchBasis}</p>
+                            )}
                         </div>
                     )}
 

@@ -5,6 +5,7 @@ const Attendance = require("../models/Attendance");
 const User = require("../models/User");
 const Operation = require("../models/Operation");
 const mongoose = require("mongoose");
+const { getSubordinateIds } = require("../middleware/roleMiddleware");
 
 exports.getStats = async (req, res) => {
     try {
@@ -78,25 +79,10 @@ exports.getStats = async (req, res) => {
         }
 
         if (!isAdmin) {
-            if (userRole === "Team Lead") {
-                // Team Leads see their own and their team members' data
-                const teamMembers = await User.find({ teamLeadId: userId }).select('_id');
-                const memberIds = teamMembers.map(m => m._id);
-                const allTeamIds = [userId, ...memberIds];
-                
-                candidateQuery.createdBy = { $in: allTeamIds };
-                jobQuery.postedBy = { $in: allTeamIds };
-                interviewQuery.$or = [
-                    { interviewerId: { $in: allTeamIds } },
-                    { createdBy: { $in: allTeamIds } }
-                ];
-                taskQuery.assignedTo = { $in: allTeamIds };
-            } else if (userRole === "Manager" || userRole === "Operation Manager") {
-                // Managers / Operation Managers see their own and their subordinates' data (Team Leads and their teams)
-                const subordinates = await User.find({ managerId: userId }).select('_id');
-                const subIds = subordinates.map(s => s._id);
+            const subIds = await getSubordinateIds(userId);
+            if (subIds && subIds.length > 0) {
                 const allSubIds = [userId, ...subIds];
-
+                
                 candidateQuery.createdBy = { $in: allSubIds };
                 jobQuery.postedBy = { $in: allSubIds };
                 interviewQuery.$or = [
@@ -105,7 +91,7 @@ exports.getStats = async (req, res) => {
                 ];
                 taskQuery.assignedTo = { $in: allSubIds };
             } else {
-                // Recruiter / HR / Others
+                // Recruiter / HR / Others (no subordinates)
                 // Find candidates assigned via tasks
                 const assignedTasks = await mongoose.model('Task').find({ 
                     assignedTo: userId, 
@@ -214,9 +200,10 @@ exports.getStats = async (req, res) => {
             ? Math.round((presentCount / totalPossibleDays) * 100) 
             : 0;
 
-        // 3. Operations Stats (For Manager & Admin)
+        // 3. Operations Stats (For Admin or roles with Operations view permission)
         let operationsStats = null;
-        if (userRole === "Manager" || isAdmin) {
+        const hasOperationsView = req.userPermissions && req.userPermissions.operations && req.userPermissions.operations.view;
+        if (isAdmin || hasOperationsView) {
             const [readyToMove, vehicleAvailable, verified, poachWarning] = await Promise.all([
                 Operation.countDocuments({ readyToMove: 'Yes' }),
                 Operation.countDocuments({ vehicle: 'Yes' }),
@@ -235,25 +222,12 @@ exports.getStats = async (req, res) => {
         // 4. Employee Productivity Stats (Role-Based Team Pulse)
         let employeeStats = [];
         let matchStage = {
-            role: { $in: ['HR', 'Recruiter', 'Team Lead', 'Manager', 'Operation Manager'] },
+            role: { $nin: ['Normal User', 'Super Admin'] },
             status: 'Active'
         };
 
-        if (!isAdmin && userRole !== "Manager" && userRole !== "Team Lead" && userRole !== "Operation Manager") {
-            // Recruiter, HR, etc. see only themselves
-            matchStage = { _id: userId };
-        } else if (userRole === "Team Lead") {
-            // Team Lead sees themselves and their team members
-            const teamMembers = await User.find({ teamLeadId: userId }).select('_id');
-            const memberIds = teamMembers.map(m => m._id);
-            matchStage = {
-                _id: { $in: [userId, ...memberIds] },
-                status: 'Active'
-            };
-        } else if (userRole === "Manager" || userRole === "Operation Manager") {
-            // Manager / Operation Manager sees themselves and subordinates
-            const subordinates = await User.find({ managerId: userId }).select('_id');
-            const subIds = subordinates.map(s => s._id);
+        if (!isAdmin) {
+            const subIds = await getSubordinateIds(userId);
             matchStage = {
                 _id: { $in: [userId, ...subIds] },
                 status: 'Active'
@@ -317,10 +291,16 @@ exports.getStats = async (req, res) => {
         const todayStr = now.toISOString().split('T')[0];
         const pendingTickets = await Candidate.find({
             ...lifetimeCandidateQuery,
-            $or: [
-                { 'tickets.portalStatus': 'Pending' },
-                { 'tickets.expdate': { $lt: todayStr } }
-            ]
+            tickets: {
+                $elemMatch: {
+                    portalStatus: { $ne: 'Completed' },
+                    ticketNo: { $in: [null, ""] },
+                    $or: [
+                        { portalStatus: 'Pending' },
+                        { expdate: { $lt: todayStr } }
+                    ]
+                }
+            }
         }).select('name tickets applicationId phone');
 
         // 2. Current Day & Overdue Reminders List (Dynamic Range)

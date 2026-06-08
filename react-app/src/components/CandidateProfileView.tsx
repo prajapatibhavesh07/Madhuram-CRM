@@ -18,6 +18,8 @@ import { industryTypes } from '../constants/IndustryConstants';
 import CandidateForm from '../pages/CandidateForm';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import { BASE_URL } from '../services/api';
+import { formatAppDate } from '../utils/helpers';
+import AppDateInput from './AppDateInput';
 
 const ArrowLeftIcon = ({ size, style }: { size: number, style?: React.CSSProperties }) => (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
@@ -301,7 +303,7 @@ const CustomDatePicker: React.FC<{
                 className="date-input-hidden"
             />
             <div className="date-picker-trigger">
-                <span>{value || 'Select Date'}</span>
+                <span>{formatAppDate(value) || 'Select Date'}</span>
                 <CalendarIcon size={16} color="#94a3b8" />
             </div>
         </div>
@@ -458,17 +460,18 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     });
 
     const [checklistForm, setChecklistForm] = useState<Record<string, string>>({
-        verifyField: 'No',
-        noPoachInCV: 'No',
-        removeNoPoach: 'No',
-        readyToMove: 'No',
-        vehicle: 'No',
-        graduation: 'No',
-        degreeCertificate: 'No',
-        rehiring: 'No'
+        verifyField: '',
+        noPoachInCV: '',
+        removeNoPoach: '',
+        readyToMove: '',
+        vehicle: '',
+        graduation: '',
+        degreeCertificate: '',
+        rehiring: ''
     });
 
     const [searchOverview, setSearchOverview] = useState('');
+    const [selectedTicketIndices, setSelectedTicketIndices] = useState<number[]>([]);
     const [operationRemark, setOperationRemark] = useState('');
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -951,11 +954,33 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const handleDeleteTicket = async (index: number) => {
         if (!candidate || !candidate.tickets) return;
-        if (window.confirm('Are you sure you want to delete this ticket row?')) {
-            const updatedTickets = candidate.tickets.filter((_: any, i: number) => i !== index);
-            setCandidate({ ...candidate, tickets: updatedTickets });
-            await api.updateCandidate(candidateId, { tickets: updatedTickets });
+        const updatedTickets = candidate.tickets.filter((_: any, i: number) => i !== index);
+        setCandidate({ ...candidate, tickets: updatedTickets });
+        setSelectedTicketIndices(prev => prev.filter(i => i !== index));
+        await api.updateCandidate(candidateId, { tickets: updatedTickets });
+    };
+
+    const handleToggleSelectTicket = (index: number) => {
+        setSelectedTicketIndices(prev => 
+            prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+        );
+    };
+
+    const handleSelectAllTickets = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!candidate || !candidate.tickets) return;
+        if (e.target.checked) {
+            setSelectedTicketIndices(candidate.tickets.map((_: any, i: number) => i));
+        } else {
+            setSelectedTicketIndices([]);
         }
+    };
+
+    const handleBulkDeleteTickets = async () => {
+        if (!candidate || !candidate.tickets || selectedTicketIndices.length === 0) return;
+        const updatedTickets = candidate.tickets.filter((_: any, i: number) => !selectedTicketIndices.includes(i));
+        setCandidate({ ...candidate, tickets: updatedTickets });
+        setSelectedTicketIndices([]);
+        await api.updateCandidate(candidateId, { tickets: updatedTickets });
     };
 
     // --- Role-Based Access Control ---
@@ -2128,8 +2153,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
                                             {isOpsCompanyDropdownOpen && (
                                                 <div className="multi-select-dropdown">
-                                                    <div className="dropdown-search">
-                                                        <button className="text-link-button" onClick={() => setTicketForm({ ...ticketForm, companyMulti: uniqueOpenCompanies })}>Select All</button>
+                                                    <div className="dropdown-search" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid #e2e8f0' }}>
+                                                        <button className="text-link-button" style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => setTicketForm({ ...ticketForm, companyMulti: uniqueOpenCompanies })}>Select All</button>
+                                                        <button className="text-link-button" style={{ fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => setTicketForm({ ...ticketForm, companyMulti: [] })}>Deselect All</button>
                                                     </div>
                                                     <div className="dropdown-options">
                                                         {uniqueOpenCompanies.map((company: string) => {
@@ -2161,8 +2187,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                 <div className="form-field-group">
                                     <label>Date Filed</label>
                                     <div className="w-full">
-                                        <input
-                                            type="date"
+                                        <AppDateInput
                                             className="ops-inputs"
                                             value={ticketForm.dateFiled}
                                             onChange={(e) => setTicketForm({ ...ticketForm, dateFiled: e.target.value })}
@@ -2172,14 +2197,44 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                             </div>
 
                             <div className="tickets-management-section">
-                                <h4 className="flex-align-center gap-8">
-                                    <FileTextIcon size={18} /> Tickets Management
+                                <h4 className="flex-align-center gap-8" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                                    <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <FileTextIcon size={18} /> Tickets Management
+                                    </span>
+                                    {selectedTicketIndices.length > 0 && (
+                                        <button 
+                                            onClick={handleBulkDeleteTickets}
+                                            className="btn-danger-red"
+                                            style={{
+                                                padding: '4px 10px',
+                                                fontSize: '11px',
+                                                borderRadius: '4px',
+                                                background: '#ef4444',
+                                                color: '#fff',
+                                                border: 'none',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '4px'
+                                            }}
+                                        >
+                                            <TrashIcon size={12} /> Delete Selected ({selectedTicketIndices.length})
+                                        </button>
+                                    )}
                                 </h4>
 
                                 <div className="modern-editable-table-container">
                                     <table className="modern-editable-table">
                                         <thead>
                                             <tr>
+                                                <th style={{ width: '40px', textAlign: 'center' }}>
+                                                    <input 
+                                                        type="checkbox" 
+                                                        onChange={handleSelectAllTickets} 
+                                                        checked={candidate.tickets && candidate.tickets.length > 0 && selectedTicketIndices.length === candidate.tickets.length}
+                                                        style={{ cursor: 'pointer' }}
+                                                    />
+                                                </th>
                                                 <th>Ticket No</th>
                                                 <th>Company</th>
                                                 <th>Upload Date</th>
@@ -2208,6 +2263,14 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
                                                 return (
                                                     <tr key={`ticket-${idx}`} className={trClass}>
+                                                        <td className="text-center" style={{ verticalAlign: 'middle' }}>
+                                                            <input 
+                                                                type="checkbox" 
+                                                                checked={selectedTicketIndices.includes(idx)} 
+                                                                onChange={() => handleToggleSelectTicket(idx)}
+                                                                style={{ cursor: 'pointer' }}
+                                                            />
+                                                        </td>
                                                         <td>
                                                             <input
                                                                 type="text"
@@ -2228,24 +2291,21 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                             </select>
                                                         </td>
                                                         <td>
-                                                            <input
-                                                                type="date"
+                                                            <AppDateInput
                                                                 className="table-input"
                                                                 value={t.uploaddate}
                                                                 onChange={(e) => handleUpdateTicket(idx, 'uploaddate', e.target.value)}
                                                             />
                                                         </td>
                                                         <td>
-                                                            <input
-                                                                type="date"
+                                                            <AppDateInput
                                                                 className={`table-input bg-main ${isExpDateAlert ? 'input-alert-border' : ''}`}
                                                                 value={t.expdate}
                                                                 onChange={(e) => handleUpdateTicket(idx, 'expdate', e.target.value)}
                                                             />
                                                         </td>
                                                         <td>
-                                                            <input
-                                                                type="date"
+                                                            <AppDateInput
                                                                 className={`table-input ${isCrtDateAlert ? 'input-alert-border' : ''}`}
                                                                 value={t.crtdate}
                                                                 onChange={(e) => handleUpdateTicket(idx, 'crtdate', e.target.value)}
@@ -2296,7 +2356,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                             })}
                                             {(!candidate.tickets || candidate.tickets.length === 0) && (
                                                 <tr>
-                                                    <td colSpan={8} className="p-24 text-center text-muted text-sm">
+                                                    <td colSpan={9} className="p-24 text-center text-muted text-sm">
                                                         No tickets found. Add one to get started.
                                                     </td>
                                                 </tr>
@@ -2753,8 +2813,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                 <div className="form-field-group">
                                                     <label>Starting</label>
                                                     <div className="flex-row-gap">
-                                                        <input
-                                                            type="date"
+                                                        <AppDateInput
                                                             value={activityForm.callDate}
                                                             onChange={(e) => handleFormChange('callDate', e.target.value)}
                                                             style={{ flex: 1 }}
@@ -2852,8 +2911,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
                                                     {isCompanyDropdownOpen && (
                                                         <div className="multi-select-dropdown">
-                                                            <div className="dropdown-search">
-                                                                <button className="text-link-button" onClick={() => handleMultiSelectChange(uniqueOpenCompanies)}>Select All</button>
+                                                            <div className="dropdown-search" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid #e2e8f0' }}>
+                                                                <button className="text-link-button" style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleMultiSelectChange(uniqueOpenCompanies)}>Select All</button>
+                                                                <button className="text-link-button" style={{ fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => handleMultiSelectChange([])}>Deselect All</button>
                                                             </div>
                                                             <div className="dropdown-options">
                                                                 {uniqueOpenCompanies.map((company: string) => {
@@ -2978,7 +3038,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                 <div className="accordion-field-grid">
                                                                     <div className="form-field-group">
                                                                         <label>Interview Date *</label>
-                                                                        <CustomDatePicker
+                                                                        <AppDateInput
                                                                             value={detail.date || activityForm.interviewDate}
                                                                             onChange={(val) => handleDetailChange(company, 'date', val)}
                                                                         />
@@ -3600,8 +3660,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                 <div className="form-row">
                                     <div className="form-field-group">
                                         <label>Start Date</label>
-                                        <input
-                                            type="date"
+                                        <AppDateInput
                                             value={workForm.startDate}
                                             onChange={(e) => setWorkForm({ ...workForm, startDate: e.target.value })}
                                         />
@@ -3609,8 +3668,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                     {!workForm.currentlyWorking && (
                                         <div className="form-field-group">
                                             <label>End Date</label>
-                                            <input
-                                                type="date"
+                                            <AppDateInput
                                                 value={workForm.endDate}
                                                 onChange={(e) => setWorkForm({ ...workForm, endDate: e.target.value })}
                                             />
@@ -3695,16 +3753,14 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                 <div className="form-row">
                                     <div className="form-field-group">
                                         <label>Start Date</label>
-                                        <input
-                                            type="date"
+                                        <AppDateInput
                                             value={educationForm.startDate}
                                             onChange={(e) => setEducationForm({ ...educationForm, startDate: e.target.value })}
                                         />
                                     </div>
                                     <div className="form-field-group">
                                         <label>End Date</label>
-                                        <input
-                                            type="date"
+                                        <AppDateInput
                                             value={educationForm.endDate}
                                             onChange={(e) => setEducationForm({ ...educationForm, endDate: e.target.value })}
                                         />
@@ -3842,8 +3898,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                     </div>
                                     <div className="form-field-group">
                                         <label style={{ fontSize: '12px', fontWeight: '600', color: '#64748b', textTransform: 'uppercase', marginBottom: '8px', display: 'block' }}>Date of Joining</label>
-                                        <input
-                                            type="date"
+                                        <AppDateInput
                                             value={onboardingForm.doj}
                                             onChange={(e) => setOnboardingForm({ ...onboardingForm, doj: e.target.value })}
                                             style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', background: '#fff' }}

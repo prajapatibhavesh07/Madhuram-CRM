@@ -37,7 +37,7 @@ const CRMChatAssistant = () => {
 
         try {
             const response = await api.askAssistant(userMsg);
-            setMessages(prev => [...prev, { role: 'assistant', content: response.data.answer }]);
+            setMessages(prev => [...prev, { role: 'assistant', content: response.data?.answer || response.answer || '' }]);
         } catch (error) {
             showToast('Failed to get AI response', 'error');
             setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again later.' }]);

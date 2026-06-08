@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api, BASE_URL } from '../services/api';
+import { formatAppDate } from '../utils/helpers';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -351,7 +352,7 @@ const TaskList = () => {
                 {task.dueDate && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.7rem', color: new Date(task.dueDate) < new Date() && task.status !== 'Completed' ? '#ef4444' : 'var(--text-muted)' }}>
                         <ClockIcon size={12} color="inherit" />
-                        <span style={{ fontWeight: 500 }}>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                        <span style={{ fontWeight: 500 }}>Due: {formatAppDate(task.dueDate)}</span>
                     </div>
                 )}
                 
@@ -586,7 +587,7 @@ const TaskList = () => {
                                             {task.dueDate ? (
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
                                                     <ClockIcon size={14} color="var(--primary)" />
-                                                    <span>{new Date(task.dueDate).toLocaleDateString()}</span>
+                                                    <span>{formatAppDate(task.dueDate)}</span>
                                                 </div>
                                             ) : '-'}
                                         </td>

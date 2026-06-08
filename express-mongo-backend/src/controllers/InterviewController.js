@@ -106,9 +106,14 @@ exports.updateInterview = async (req, res) => {
 
         // Role-base check
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
-            if (oldInterview.createdBy.toString() !== req.user._id.toString() && 
-                oldInterview.interviewerId.toString() !== req.user._id.toString()) {
-                return res.status(403).json({ message: "Access denied: You can only update your own interviews." });
+            const subordinateIds = await getSubordinateIds(req.user._id);
+            const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
+
+            const isCreatorOrSubordinate = oldInterview.createdBy && allowedUserIds.includes(oldInterview.createdBy.toString());
+            const isInterviewerOrSubordinate = oldInterview.interviewerId && allowedUserIds.includes(oldInterview.interviewerId.toString());
+
+            if (!isCreatorOrSubordinate && !isInterviewerOrSubordinate) {
+                return res.status(403).json({ message: "Access denied: You can only update interviews scheduled by or for you or your subordinates." });
             }
         }
 
@@ -140,8 +145,12 @@ exports.deleteInterview = async (req, res) => {
 
         // Role-base check
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
-            if (interview.createdBy.toString() !== req.user._id.toString()) {
-                return res.status(403).json({ message: "Access denied: You can only cancel your own interviews." });
+            const subordinateIds = await getSubordinateIds(req.user._id);
+            const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
+
+            const isCreatorOrSubordinate = interview.createdBy && allowedUserIds.includes(interview.createdBy.toString());
+            if (!isCreatorOrSubordinate) {
+                return res.status(403).json({ message: "Access denied: You can only cancel interviews scheduled by you or your subordinates." });
             }
         }
 

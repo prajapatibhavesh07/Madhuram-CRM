@@ -10,14 +10,33 @@ exports.punchIn = async (req, res) => {
         let attendance = await Attendance.findOne({ userId, date: today });
 
         if (attendance) {
-            return res.status(400).json({ message: 'Already punched in for today' });
+            return res.status(200).json({ message: 'Already punched in for today', alreadyPunched: true, attendance });
+        }
+
+        const now = new Date();
+        let status = 'Present';
+
+        try {
+            const Settings = require('../models/Settings');
+            const settings = await Settings.findOne();
+            if (settings && settings.attendance && settings.attendance.halfDayThreshold) {
+                const [thresholdHour, thresholdMin] = settings.attendance.halfDayThreshold.split(':').map(Number);
+                const punchHour = now.getHours();
+                const punchMin = now.getMinutes();
+
+                if (punchHour > thresholdHour || (punchHour === thresholdHour && punchMin > thresholdMin)) {
+                    status = 'Half Day';
+                }
+            }
+        } catch (err) {
+            console.error('Error applying attendance settings for half-day:', err);
         }
 
         attendance = new Attendance({
             userId,
             date: today,
-            inTime: new Date(),
-            status: 'Present'
+            inTime: now,
+            status
         });
 
         await attendance.save();
@@ -31,13 +50,10 @@ exports.punchOut = async (req, res) => {
     try {
         if (!req.user) return res.status(401).json({ message: "Authentication required" });
         const userId = req.user._id;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const attendance = await Attendance.findOne({ userId, date: today });
+        const attendance = await Attendance.findOne({ userId, outTime: { $exists: false } }).sort({ date: -1 });
 
         if (!attendance) {
-            return res.status(404).json({ message: 'No punch-in record found for today' });
+            return res.status(404).json({ message: 'No active punch-in record found' });
         }
 
         const outTime = new Date();

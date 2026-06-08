@@ -105,6 +105,7 @@ interface Candidate {
     offerStatus?: string;
     doj?: string;
     noticePeriod?: string;
+    jobId?: string | { _id: string; title: string };
 }
 
 const HighlightText = ({ text, highlight }: { text: string | number, highlight: string }) => {
@@ -164,6 +165,11 @@ const JobList = () => {
     const [emailSubject, setEmailSubject] = useState('');
     const [emailMessage, setEmailMessage] = useState('');
     const [sendingEmail, setSendingEmail] = useState(false);
+    const [candidates, setCandidates] = useState<Candidate[]>([]);
+    const [selectedRecipientId, setSelectedRecipientId] = useState<string>('all');
+    const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
+    const [emailTemplates, setEmailTemplates] = useState<any[]>([]);
+    const [selectedEmailTemplateId, setSelectedEmailTemplateId] = useState<string>('custom');
 
     // Job Drawer State
     const [isJobDrawerOpen, setIsJobDrawerOpen] = useState(false);
@@ -175,6 +181,61 @@ const JobList = () => {
     const [shareModalJobId, setShareModalJobId] = useState<string | null>(null);
     const [hrEmailAddress, setHrEmailAddress] = useState('');
     const [isSharingHR, setIsSharingHR] = useState(false);
+    const [hrSubject, setHrSubject] = useState('');
+    const [hrMessage, setHrMessage] = useState('');
+    const [selectedHrTemplateId, setSelectedHrTemplateId] = useState<string>('custom');
+    const [defaultHrSubject, setDefaultHrSubject] = useState('');
+    const [defaultHrMessage, setDefaultHrMessage] = useState('');
+
+    useEffect(() => {
+        const fetchEmailTemplates = async () => {
+            try {
+                const data = await api.getTemplates();
+                const filtered = (data || []).filter((t: any) => t.type === 'Email');
+                setEmailTemplates(filtered);
+            } catch (err) {
+                console.error('Failed to load email templates', err);
+            }
+        };
+        fetchEmailTemplates();
+    }, []);
+
+    useEffect(() => {
+        if (!emailModalJobId) {
+            setSelectedRecipientId('all');
+            setSelectedCandidateIds([]);
+            setSelectedEmailTemplateId('custom');
+            setEmailSubject('');
+            setEmailMessage('');
+        }
+    }, [emailModalJobId]);
+
+    useEffect(() => {
+        if (!shareModalJobId) {
+            setSelectedHrTemplateId('custom');
+            setHrEmailAddress('');
+            setHrSubject('');
+            setHrMessage('');
+            setDefaultHrSubject('');
+            setDefaultHrMessage('');
+        }
+    }, [shareModalJobId]);
+
+    const openShareModal = (job: Job) => {
+        setShareModalJobId(job._id);
+        setHrEmailAddress(job.hrEmail || '');
+        
+        const initialSubject = `Candidates List: ${job.title}`;
+        const initialMessage = `Please find below the details of the candidates who applied for the ${job.title} position.`;
+        
+        setHrSubject(initialSubject);
+        setHrMessage(initialMessage);
+        setDefaultHrSubject(initialSubject);
+        setDefaultHrMessage(initialMessage);
+        
+        setSelectedHrTemplateId('custom');
+        setActiveMenu(null);
+    };
 
     // Advanced Filters State
     const [activeFilters, setActiveFilters] = useState<{ id: string, field: string, operator: string, value: string }[]>([]);
@@ -255,10 +316,11 @@ const JobList = () => {
     const fetchJobs = async () => {
         setLoading(true);
         try {
-            const [jobsData] = await Promise.all([
+            const [jobsData, candidatesData] = await Promise.all([
                 api.getJobs(),
                 api.getCandidates()
             ]);
+            setCandidates(candidatesData || []);
             const processedJobs: any[] = [];
             jobsData.forEach((job: any) => {
                 const jobManagers = job.managers || [];
@@ -369,7 +431,7 @@ const JobList = () => {
         try {
             const prompt = `Write a professional email draft for the subject: "${emailSubject}". Use the following exact tags where appropriate: @name (Candidate Name), @email (Candidate's Email), @phone (Candidate's Phone), @company (Current Company), @designation (Applied Designation), @location (Location). Keep it concise and professional. Return ONLY the email body.`;
             const response = await api.askAssistant(prompt);
-            setEmailMessage(response.data.answer);
+            setEmailMessage(response.data?.answer || response.answer || '');
         } catch (error) {
             console.error('Failed to generate AI draft', error);
             showToast('Failed to generate AI draft. Please try again.', 'error');
@@ -385,19 +447,32 @@ const JobList = () => {
             return;
         }
 
+        if (selectedRecipientId === 'custom' && selectedCandidateIds.length === 0) {
+            showToast('Please select at least one candidate to email', 'warning');
+            return;
+        }
+
         setSendingEmail(true);
         try {
-            const res = await api.emailCandidatesForJob(emailModalJobId, {
+            const payload: any = {
                 subject: emailSubject,
                 message: emailMessage
-            });
+            };
+            if (selectedRecipientId === 'custom') {
+                payload.candidateIds = selectedCandidateIds;
+            } else if (selectedRecipientId !== 'all') {
+                payload.candidateId = selectedRecipientId;
+            }
+            const res = await api.emailCandidatesForJob(emailModalJobId, payload);
             showToast(res.message || 'Emails sent successfully', 'success');
             setEmailModalJobId(null);
             setEmailSubject('');
             setEmailMessage('');
+            setSelectedRecipientId('all');
+            setSelectedCandidateIds([]);
         } catch (error) {
             console.error(error);
-            showToast('Failed to send bulk emails', 'error');
+            showToast('Failed to send emails', 'error');
         } finally {
             setSendingEmail(false);
         }
@@ -409,13 +484,23 @@ const JobList = () => {
             showToast('Please enter a valid HR email address', 'error');
             return;
         }
+        if (!hrSubject.trim()) {
+            showToast('Subject is required', 'error');
+            return;
+        }
 
         setIsSharingHR(true);
         try {
-            const res = await api.shareCandidatesWithHR(shareModalJobId, hrEmailAddress);
+            const res = await api.shareCandidatesWithHR(shareModalJobId, {
+                hrEmail: hrEmailAddress,
+                subject: hrSubject,
+                message: hrMessage
+            });
             showToast(res.message || 'Candidates shared with HR successfully', 'success');
             setShareModalJobId(null);
             setHrEmailAddress('');
+            setHrSubject('');
+            setHrMessage('');
         } catch (error) {
             console.error(error);
             showToast('Failed to share candidates with HR', 'error');
@@ -600,6 +685,10 @@ const JobList = () => {
     );
 
     const selectedJob = jobs.find(j => j._id === emailModalJobId);
+    const jobCandidates = useMemo(() => {
+        if (!emailModalJobId) return [];
+        return candidates.filter(c => c.jobId === emailModalJobId || (c.jobId as any)?._id === emailModalJobId);
+    }, [candidates, emailModalJobId]);
 
     return (
         <div className="candidate-list-page">
@@ -891,7 +980,7 @@ const JobList = () => {
                                                             <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(job._id); setActiveMenu(null); }} className="kanban-card__menu-item">
                                                                 <MailIcon size={14} /> Email Candidates
                                                             </div>
-                                                            <div onClick={(e) => { e.stopPropagation(); setShareModalJobId(job._id); setHrEmailAddress(job.hrEmail || ''); setActiveMenu(null); }} className="kanban-card__menu-item">
+                                                            <div onClick={(e) => { e.stopPropagation(); openShareModal(job); }} className="kanban-card__menu-item">
                                                                 <SendIcon size={14} /> Send to HR
                                                             </div>
                                                             {canDelete && (
@@ -1032,7 +1121,7 @@ const JobList = () => {
                                                                     <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(job._id); setActiveMenu(null); }} className="kanban-card__menu-item">
                                                                         <MailIcon size={14} /> Email Candidates
                                                                     </div>
-                                                                    <div onClick={(e) => { e.stopPropagation(); setShareModalJobId(job._id); setHrEmailAddress(job.hrEmail || ''); setActiveMenu(null); }} className="kanban-card__menu-item">
+                                                                    <div onClick={(e) => { e.stopPropagation(); openShareModal(job); }} className="kanban-card__menu-item">
                                                                         <SendIcon size={14} /> Send to HR
                                                                     </div>
                                                                     {canDelete && (
@@ -1187,7 +1276,7 @@ const JobList = () => {
                                                             <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(job._id); setActiveMenu(null); }} className="kanban-card__menu-item">
                                                                 <MailIcon size={14} /> Email Candidates
                                                             </div>
-                                                            <div onClick={(e) => { e.stopPropagation(); setShareModalJobId(job._id); setHrEmailAddress(job.hrEmail || ''); setActiveMenu(null); }} className="kanban-card__menu-item">
+                                                            <div onClick={(e) => { e.stopPropagation(); openShareModal(job); }} className="kanban-card__menu-item">
                                                                 <SendIcon size={14} /> Send to HR
                                                             </div>
                                                             {canDelete && (
@@ -1269,12 +1358,164 @@ const JobList = () => {
                     <div className="flex justify-end gap-12">
                         <button className="btn-secondary" onClick={() => setEmailModalJobId(null)}>Cancel</button>
                         <button className="btn-primary flex-align-center gap-8" onClick={handleSendEmail} disabled={sendingEmail}>
-                            {sendingEmail ? 'Sending...' : <><MailIcon size={16} /> Send to All Applicants</>}
+                            {sendingEmail ? 'Sending...' : (
+                                <>
+                                    <MailIcon size={16} /> 
+                                    {selectedRecipientId === 'all' 
+                                        ? 'Send to All Applicants' 
+                                        : selectedRecipientId === 'custom' 
+                                            ? `Send to ${selectedCandidateIds.length} Candidate(s)` 
+                                            : 'Send Email'}
+                                </>
+                            )}
                         </button>
                     </div>
                 }
             >
                 <div className="modal-form-container">
+                    <div className="input-group">
+                        <label className="input-label">To</label>
+                        <div className="tab-nav mb-12" style={{ display: 'flex', gap: '8px', background: '#e2e8f0', padding: '4px', borderRadius: '8px', width: 'fit-content' }}>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedRecipientId('all')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    border: 'none',
+                                    background: selectedRecipientId === 'all' ? '#ffffff' : 'transparent',
+                                    color: selectedRecipientId === 'all' ? 'var(--primary)' : '#64748b',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: selectedRecipientId === 'all' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
+                                }}
+                            >
+                                All Applicants ({jobCandidates.length})
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setSelectedRecipientId('custom')}
+                                style={{
+                                    padding: '6px 12px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 600,
+                                    border: 'none',
+                                    background: selectedRecipientId === 'custom' ? '#ffffff' : 'transparent',
+                                    color: selectedRecipientId === 'custom' ? 'var(--primary)' : '#64748b',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.2s',
+                                    boxShadow: selectedRecipientId === 'custom' ? '0 1px 3px rgba(0,0,0,0.05)' : 'none'
+                                }}
+                            >
+                                Select Candidates ({selectedCandidateIds.length})
+                            </button>
+                        </div>
+
+                        {selectedRecipientId === 'custom' && (
+                            <div className="candidate-selector-list" style={{
+                                maxHeight: '180px',
+                                overflowY: 'auto',
+                                border: '1px solid var(--border)',
+                                borderRadius: '8px',
+                                padding: '8px',
+                                background: 'rgba(255, 255, 255, 0.4)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '6px',
+                                marginTop: '8px'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '6px', borderBottom: '1px solid var(--border)', marginBottom: '4px' }}>
+                                    <input
+                                        type="checkbox"
+                                        id="select-all-candidates"
+                                        checked={selectedCandidateIds.length === jobCandidates.length && jobCandidates.length > 0}
+                                        onChange={(e) => {
+                                            if (e.target.checked) {
+                                                setSelectedCandidateIds(jobCandidates.map(c => c._id));
+                                            } else {
+                                                setSelectedCandidateIds([]);
+                                            }
+                                        }}
+                                        style={{ cursor: 'pointer' }}
+                                    />
+                                    <label htmlFor="select-all-candidates" style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-main)', cursor: 'pointer', margin: 0 }}>
+                                        Select All Candidates
+                                    </label>
+                                </div>
+                                {jobCandidates.map(c => {
+                                    const isChecked = selectedCandidateIds.includes(c._id);
+                                    return (
+                                        <div 
+                                            key={c._id} 
+                                            style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '10px', 
+                                                padding: '6px 8px', 
+                                                borderRadius: '6px',
+                                                background: isChecked ? 'rgba(0, 84, 141, 0.04)' : 'transparent',
+                                                transition: 'background 0.2s'
+                                            }}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                id={`candidate-chk-${c._id}`}
+                                                checked={isChecked}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setSelectedCandidateIds(prev => [...prev, c._id]);
+                                                    } else {
+                                                        setSelectedCandidateIds(prev => prev.filter(id => id !== c._id));
+                                                    }
+                                                }}
+                                                style={{ cursor: 'pointer' }}
+                                            />
+                                            <label htmlFor={`candidate-chk-${c._id}`} style={{ display: 'flex', flexDirection: 'column', cursor: 'pointer', margin: 0, flex: 1 }}>
+                                                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>{c.name}</span>
+                                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{c.email} • {c.phone}</span>
+                                            </label>
+                                        </div>
+                                    );
+                                })}
+                                {jobCandidates.length === 0 && (
+                                    <div style={{ padding: '12px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                        No applicants found for this vacancy.
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Select Template</label>
+                        <select
+                            className="input-field"
+                            value={selectedEmailTemplateId}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSelectedEmailTemplateId(val);
+                                if (val === 'custom') {
+                                    setEmailSubject('');
+                                    setEmailMessage('');
+                                } else {
+                                    const selected = emailTemplates.find(t => t._id === val);
+                                    if (selected) {
+                                        setEmailSubject(selected.subject || '');
+                                        setEmailMessage(selected.body || '');
+                                    }
+                                }
+                            }}
+                        >
+                            <option value="custom">Custom Message (No Template)</option>
+                            {emailTemplates.map(t => (
+                                <option key={t._id} value={t._id}>
+                                    {t.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
                     <div className="input-group">
                         <label>Subject</label>
                         <input
@@ -1283,6 +1524,7 @@ const JobList = () => {
                             placeholder="Interview Schedule for @designation"
                             value={emailSubject}
                             onChange={(e) => setEmailSubject(e.target.value)}
+                            disabled={selectedEmailTemplateId !== 'custom'}
                         />
                     </div>
                     <div className="input-group">
@@ -1291,7 +1533,7 @@ const JobList = () => {
                             <button
                                 type="button"
                                 onClick={handleGenerateDraft}
-                                disabled={isGeneratingDraft || !emailSubject.trim()}
+                                disabled={isGeneratingDraft || !emailSubject.trim() || selectedEmailTemplateId !== 'custom'}
                                 className="ai-magic-btn"
                             >
                                 <SparklesIcon size={14} />
@@ -1303,6 +1545,7 @@ const JobList = () => {
                             placeholder="Dear @name,\n\nWe are pleased to inform you that your application for @designation has been shortlisted..."
                             value={emailMessage}
                             onChange={(e) => setEmailMessage(e.target.value)}
+                            disabled={selectedEmailTemplateId !== 'custom'}
                         />
                     </div>
                     <div className="modal-info-box">
@@ -1325,16 +1568,16 @@ const JobList = () => {
                 subtitle="Send applicant details via email"
                 size="md"
                 footer={
-                    <>
-                        <button className="btn btn-secondary" onClick={() => setShareModalJobId(null)}>Cancel</button>
-                        <button className="btn btn-primary" onClick={handleShareWithHR} disabled={isSharingHR}>
+                    <div className="flex justify-end gap-12">
+                        <button className="btn-secondary" onClick={() => setShareModalJobId(null)}>Cancel</button>
+                        <button className="btn-primary flex-align-center gap-8" onClick={handleShareWithHR} disabled={isSharingHR}>
                             {isSharingHR ? 'Sending...' : <><SendIcon size={16} /> Send to HR</>}
                         </button>
-                    </>
+                    </div>
                 }
             >
-                <div className="modal-form-grid">
-                    <div className="input-group full-width">
+                <div className="modal-form-container" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div className="input-group">
                         <label className="input-label">HR Email Address</label>
                         <input
                             type="email"
@@ -1342,9 +1585,62 @@ const JobList = () => {
                             placeholder="hr@company.com"
                             value={hrEmailAddress}
                             onChange={(e) => setHrEmailAddress(e.target.value)}
+                            required
                         />
-                        <p className="text-muted mt-8" style={{ fontSize: '0.8125rem' }}>
-                            This will send a detailed table of all applicants (including names, contact details, experience, CTC, and resume downloads) who applied for this job to the specified HR email address.
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Select Template</label>
+                        <select
+                            className="input-field"
+                            value={selectedHrTemplateId}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                setSelectedHrTemplateId(val);
+                                if (val === 'custom') {
+                                    setHrSubject(defaultHrSubject);
+                                    setHrMessage(defaultHrMessage);
+                                } else {
+                                    const selected = emailTemplates.find(t => t._id === val);
+                                    if (selected) {
+                                        setHrSubject(selected.subject || '');
+                                        setHrMessage(selected.body || '');
+                                    }
+                                }
+                            }}
+                        >
+                            <option value="custom">Custom Message (No Template)</option>
+                            {emailTemplates.map(t => (
+                                <option key={t._id} value={t._id}>
+                                    {t.name}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Subject</label>
+                        <input
+                            type="text"
+                            className="input-field"
+                            value={hrSubject}
+                            onChange={(e) => setHrSubject(e.target.value)}
+                            disabled={selectedHrTemplateId !== 'custom'}
+                            required
+                        />
+                    </div>
+                    <div className="input-group">
+                        <label className="input-label">Message Body</label>
+                        <textarea
+                            className="input-field h-100"
+                            rows={4}
+                            placeholder="Please find below the candidate details..."
+                            value={hrMessage}
+                            onChange={(e) => setHrMessage(e.target.value)}
+                            disabled={selectedHrTemplateId !== 'custom'}
+                        />
+                    </div>
+                    <div className="modal-info-box">
+                        <p className="text-muted mb-0" style={{ fontSize: '0.8125rem' }}>
+                            A detailed table of all applicants (including names, contact details, experience, CTC, and resume downloads) will be appended automatically at the bottom of this email.
                         </p>
                     </div>
                 </div>
@@ -1580,7 +1876,7 @@ const JobList = () => {
                     <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(contextMenu.job._id); setContextMenu(null); }} className="kanban-card__menu-item">
                         <MailIcon size={14} /> Email Candidates
                     </div>
-                    <div onClick={(e) => { e.stopPropagation(); setShareModalJobId(contextMenu.job._id); setHrEmailAddress(contextMenu.job.hrEmail || ''); setContextMenu(null); }} className="kanban-card__menu-item">
+                    <div onClick={(e) => { e.stopPropagation(); openShareModal(contextMenu.job); setContextMenu(null); }} className="kanban-card__menu-item">
                         <SendIcon size={14} /> Send to HR
                     </div>
                     {canDelete && (

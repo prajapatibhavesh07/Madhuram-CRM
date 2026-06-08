@@ -203,7 +203,7 @@ exports.addTaskComment = async (req, res) => {
 
         // Notify assigned user if it's not the commenter
         const task = await Task.findById(req.params.id);
-        if (task && task.assignedTo.toString() !== req.user._id.toString()) {
+        if (task && task.assignedTo && task.assignedTo.toString() !== req.user._id.toString()) {
             await notificationService.sendNotification(task.assignedTo, {
                 title: 'New Comment on Task',
                 message: `${req.user.name} commented on: ${task.title}`,

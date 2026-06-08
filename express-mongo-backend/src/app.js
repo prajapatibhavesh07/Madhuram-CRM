@@ -77,6 +77,7 @@ app.use("/api/ai", require("./routes/ai.routes"));
 app.use("/api/dashboard", require("./routes/dashboard.routes"));
 app.use("/api/call-history", require("./routes/callHistory"));
 app.use("/api/roles", require("./routes/role.routes"));
+app.use("/api/templates", require("./routes/template.routes"));
 
 
 // Health check

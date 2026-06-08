@@ -155,24 +155,31 @@ exports.deleteMultipleJobs = async (req, res) => {
 exports.emailCandidates = async (req, res) => {
     try {
         const jobId = req.params.id;
-        const { subject, message } = req.body;
+        const { subject, message, candidateId, candidateIds } = req.body;
 
         if (!subject || !message) {
             return res.status(400).json({ message: 'Subject and message are required' });
         }
 
-        // Find all candidates that applied for this job
-        const candidates = await Candidate.find({ jobId });
-
-        if (candidates.length === 0) {
-            return res.status(404).json({ message: 'No candidates found for this job' });
+        // Find candidates that applied for this job
+        let candidates;
+        if (candidateIds && Array.isArray(candidateIds) && candidateIds.length > 0) {
+            candidates = await Candidate.find({ _id: { $in: candidateIds }, jobId });
+        } else if (candidateId) {
+            candidates = await Candidate.find({ _id: candidateId, jobId });
+        } else {
+            candidates = await Candidate.find({ jobId });
         }
 
-        // Send bulk emails using the existing email service which supports tags like @name
+        if (candidates.length === 0) {
+            return res.status(404).json({ message: 'No candidates found' });
+        }
+
+        // Send emails using the existing email service which supports tags like @name
         const results = await emailService.sendBulkEmails(candidates, subject, message);
 
         res.json({
-            message: `Successfully emailed ${results.success} candidates. Failed: ${results.failed}`,
+            message: `Successfully emailed ${results.success} candidate(s). Failed: ${results.failed}`,
             results
         });
 
@@ -183,7 +190,7 @@ exports.emailCandidates = async (req, res) => {
 exports.shareCandidatesWithHR = async (req, res) => {
     try {
         const jobId = req.params.id;
-        const { hrEmail } = req.body;
+        const { hrEmail, subject, message } = req.body;
 
         if (!hrEmail) {
             return res.status(400).json({ message: 'HR Email is required' });
@@ -192,7 +199,7 @@ exports.shareCandidatesWithHR = async (req, res) => {
         const job = await Job.findById(jobId);
         if (!job) return res.status(404).json({ message: 'Job not found' });
 
-        const primaryTitle = job.managers?.[0]?.title || 'Untitled Job';
+        const primaryTitle = job.managers?.[0]?.title || job.title || 'Untitled Job';
         const candidates = await Candidate.find({ jobId });
 
         if (candidates.length === 0) {
@@ -200,11 +207,13 @@ exports.shareCandidatesWithHR = async (req, res) => {
         }
 
         // Build HTML content
+        const emailSubject = subject || `Candidates List: ${primaryTitle}`;
+        const emailMessage = message ? `<p>${message.replace(/\n/g, '<br>')}</p>` : `<p>Please find below the details of the candidates who applied for the <strong>${primaryTitle}</strong> position.</p>`;
+
         let htmlContent = `
             <div style="font-family: Arial, sans-serif; color: #333;">
                 <h2 style="color: #4f46e5;">Job Applications: ${primaryTitle}</h2>
-                <p>Hello,</p>
-                <p>Please find below the details of the candidates who applied for the <strong>${primaryTitle}</strong> position.</p>
+                ${emailMessage}
                 <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
                     <thead>
                         <tr style="background-color: #f3f4f6; text-align: left;">
@@ -241,7 +250,7 @@ exports.shareCandidatesWithHR = async (req, res) => {
             </div>
         `;
 
-        await emailService.sendRawEmail(hrEmail, `Candidates List: ${job.title}`, htmlContent);
+        await emailService.sendRawEmail(hrEmail, emailSubject, htmlContent);
 
         res.json({ message: 'Candidate details forwarded to HR successfully' });
 

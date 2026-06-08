@@ -1,13 +1,13 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    ChevronRightIcon, CheckIcon, DownloadIcon,
+    ChevronRightIcon, CheckIcon,
     ClockIcon, ListIcon, AlertCircleIcon, BellIcon, SparklesIcon
 } from '../icons';
 import CandidateSummaryCard from '../components/CandidateSummaryCard';
 import { ModernStatsCard } from '../components/DashboardWidgets';
 
-const DashboardManager = ({ stats }: { stats: any }) => {
+const DashboardManager = ({ stats, onOpenTicketModal }: { stats: any; onOpenTicketModal?: (candidate: any) => void }) => {
     const navigate = useNavigate();
     const [activeList, setActiveList] = React.useState<'reminders' | 'tickets' | 'assessment' | 'newlyAssigned'>('reminders');
 
@@ -126,7 +126,18 @@ const DashboardManager = ({ stats }: { stats: any }) => {
                             {activeList === 'tickets' && (
                                 <div className="candidate-list">
                                     {stats?.pendingTickets?.length > 0 ? stats.pendingTickets.map((c: any) => (
-                                        <div key={c._id} className="candidate-item" onClick={() => navigate(`/candidates?id=${c._id}`)}>
+                                        <div 
+                                            key={c._id} 
+                                            className="candidate-item" 
+                                            onClick={() => {
+                                                if (onOpenTicketModal) {
+                                                    onOpenTicketModal(c);
+                                                } else {
+                                                    navigate(`/candidates?id=${c._id}`);
+                                                }
+                                            }}
+                                            style={{ cursor: 'pointer' }}
+                                        >
                                             <div className="candidate-item-icon" style={{ background: '#fffbeb', color: '#f59e0b' }}>
                                                 <ListIcon size={20} />
                                             </div>
@@ -214,29 +225,6 @@ const DashboardManager = ({ stats }: { stats: any }) => {
                         joined={stats?.counters?.joinedCount ?? 0}
                     />
 
-                    <div className="widget-card">
-                        <div className="widget-header">
-                            <h3>Operations Insights</h3>
-                        </div>
-                        <div className="insights-list" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            {[
-                                { label: 'Relocation Readiness', value: `${stats?.operations?.readyToMove} Total`, color: '#4f46e5' },
-                                { label: 'Logistics (Vehicle)', value: `${stats?.operations?.vehicleAvailable} Candidates`, color: '#10b981' },
-                                { label: 'Verification Rate', value: `${(stats?.operations?.verified / stats?.counters?.totalCandidates * 100 || 0).toFixed(1)}% Success`, color: '#f59e0b' }
-                            ].map((insight, idx) => (
-                                <div key={idx} className="insights-item" style={{ background: '#f8fafc', padding: '12px', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>{insight.label}</span>
-                                    <span style={{ fontSize: '14px', fontWeight: 700, color: insight.color }}>{insight.value}</span>
-                                </div>
-                            ))}
-                        </div>
-                        <div className="download-data-footer" style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '1rem', borderTop: '1px solid #f1f5f9' }}>
-                            <a href="#" style={{ fontSize: '12px', fontWeight: 600, color: '#6366f1', textDecoration: 'none' }}>Export Operational Report</a>
-                            <button className="icon-btn-sm">
-                                <DownloadIcon size={14} color="#64748b" />
-                            </button>
-                        </div>
-                    </div>
 
                     <div className="widget-card widget-card--span-2">
                         <div className="widget-header">

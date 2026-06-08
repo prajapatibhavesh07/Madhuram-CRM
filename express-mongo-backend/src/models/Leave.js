@@ -4,7 +4,6 @@ const leaveSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     type: {
         type: String,
-        enum: ['Casual Leave', 'Sick Leave', 'Earned Leave', 'Maternity Leave', 'Paternity Leave', 'Comp Off', 'Unpaid Leave'],
         required: true
     },
     startDate: { type: Date, required: true },

@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { api } from './services/api';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { ChatProvider } from './context/ChatContext';
@@ -21,6 +23,7 @@ import JobForm from './pages/JobForm';
 import OfferList from './pages/OfferList';
 import ImportExport from './pages/ImportExport';
 import Settings from './pages/Settings';
+import TemplateManagement from './pages/TemplateManagement';
 import OperationDesk from './pages/OperationDesk';
 import TaskList from './pages/TaskList';
 import CallHistory from './pages/CallHistory';
@@ -34,6 +37,20 @@ import RolePermissions from './pages/RolePermissions';
 import CompanyDetail from './pages/CompanyDetail';
 
 function App() {
+  useEffect(() => {
+    const initSettings = async () => {
+      try {
+        const data = await api.getSettings();
+        if (data && data.general && data.general.dateFormat) {
+          localStorage.setItem('dateFormat', data.general.dateFormat);
+        }
+      } catch (e) {
+        console.error('Error fetching settings on startup:', e);
+      }
+    };
+    initSettings();
+  }, []);
+
   return (
     <ToastProvider>
       <AuthProvider>
@@ -246,6 +263,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredModule="settings">
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/templates"
+                  element={
+                    <ProtectedRoute requiredModule="settings">
+                      <TemplateManagement />
                     </ProtectedRoute>
                   }
                 />

@@ -156,6 +156,7 @@ const candidateSchema = new mongoose.Schema({
 
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    assignedOperationManager: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     remarks: [{
         content: String,
         createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
@@ -168,14 +169,14 @@ const candidateSchema = new mongoose.Schema({
     companyMulti: [{ type: String }],
     operationRemark: { type: String },
     fulfillmentChecklist: {
-        verifyField: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        noPoachInCV: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        removeNoPoach: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        readyToMove: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        vehicle: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        graduation: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        degreeCertificate: { type: String, enum: ['Yes', 'No'], default: 'No' },
-        rehiring: { type: String, enum: ['Yes', 'No'], default: 'No' }
+        verifyField: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        noPoachInCV: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        removeNoPoach: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        readyToMove: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        vehicle: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        graduation: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        degreeCertificate: { type: String, enum: ['Yes', 'No', ''], default: '' },
+        rehiring: { type: String, enum: ['Yes', 'No', ''], default: '' }
     }
 }, {
     timestamps: true

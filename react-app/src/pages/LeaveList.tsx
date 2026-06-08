@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -6,6 +6,8 @@ import Modal from '../components/Modal';
 import { CheckIcon, TrashIcon, SearchIcon, GripVerticalIcon, ChevronDownIcon, PlusIcon } from '../icons';
 import Pagination from '../components/Pagination';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import { formatAppDate } from '../utils/helpers';
+import AppDateInput from '../components/AppDateInput';
 
 const HighlightText = ({ text, highlight }: { text: string | number, highlight: string }) => {
     const stringText = text?.toString() || '';
@@ -42,6 +44,24 @@ const LeaveList = () => {
     const [confirmAction, setConfirmAction] = useState<{ id: string, status: string } | null>(null);
     const [wasValidated, setWasValidated] = useState(false);
 
+    const [leaveTypes, setLeaveTypes] = useState<string[]>([
+        'Casual Leave',
+        'Sick Leave',
+        'Earned Leave',
+        'Maternity Leave',
+        'Paternity Leave',
+        'Comp Off',
+        'Unpaid Leave'
+    ]);
+
+    const [leaveLimits, setLeaveLimits] = useState<Record<string, number>>({
+        'Casual Leave': 12,
+        'Sick Leave': 12,
+        'Earned Leave': 15,
+        'Maternity Leave': 90,
+        'Paternity Leave': 15
+    });
+
     const canViewAll = user?.role === 'Admin' || user?.role === 'HR' || activeRole?.permissions?.leaves?.view === true;
     const canManage = user?.role === 'Admin' || user?.role === 'HR' || activeRole?.permissions?.leaves?.edit === true;
 
@@ -54,7 +74,7 @@ const LeaveList = () => {
 
     useEffect(() => {
         fetchData();
-        if (viewMode === 'my') fetchBalance();
+        fetchBalance();
     }, [viewMode]);
 
     useEffect(() => {
@@ -80,11 +100,49 @@ const LeaveList = () => {
 
     const fetchBalance = async () => {
         try {
-            const data = await api.getLeaveBalance();
-            setBalances(data);
+            const [balanceData, settingsData] = await Promise.all([
+                api.getLeaveBalance(),
+                api.getSettings()
+            ]);
+            setBalances(balanceData);
+
+            if (settingsData && settingsData.leavePolicy) {
+                const lp = settingsData.leavePolicy;
+                const limits: Record<string, number> = {
+                    'Casual Leave': lp.casualLeaveDays ?? 12,
+                    'Sick Leave': lp.sickLeaveDays ?? 12,
+                    'Earned Leave': lp.earnedLeaveDays ?? 15,
+                    'Maternity Leave': lp.maternityLeaveDays ?? 90,
+                    'Paternity Leave': lp.paternityLeaveDays ?? 15
+                };
+                
+                const customNames = (lp.customLeaveTypes || []).map((c: any) => c.name).filter(Boolean);
+                (lp.customLeaveTypes || []).forEach((c: any) => {
+                    if (c.name) limits[c.name] = c.days ?? 0;
+                });
+                
+                setLeaveLimits(limits);
+                setLeaveTypes([
+                    'Casual Leave',
+                    'Sick Leave',
+                    'Earned Leave',
+                    'Maternity Leave',
+                    'Paternity Leave',
+                    'Comp Off',
+                    'Unpaid Leave',
+                    ...customNames
+                ]);
+            }
         } catch (error) {
-            console.error('Failed to fetch balance');
+            console.error('Failed to fetch balance or leave settings:', error);
         }
+    };
+
+    const getUsedDays = (type: string) => {
+        // Find approved leave requests for the current user (if in 'my' view) or calculate it
+        return leaves
+            .filter(l => l.type === type && l.status === 'Approved')
+            .reduce((sum, l) => sum + (l.daysCount || 0), 0);
     };
 
     const handleApply = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -103,6 +161,7 @@ const LeaveList = () => {
             showToast('Leave applied successfully', 'success');
             setIsModalOpen(false);
             fetchData();
+            fetchBalance();
             setFormData({ type: 'Casual Leave', startDate: '', endDate: '', reason: '' });
         } catch (error: any) {
             showToast(error.message, 'error');
@@ -122,6 +181,7 @@ const LeaveList = () => {
             await api.updateLeaveStatus(confirmAction.id, { status: confirmAction.status });
             showToast(`Leave ${confirmAction.status} `, 'success');
             fetchData();
+            fetchBalance();
             setConfirmAction(null);
         } catch (error: any) {
             showToast('Failed to update status', 'error');
@@ -138,6 +198,7 @@ const LeaveList = () => {
             await api.deleteLeave(deletingLeaveId);
             showToast('Leave request deleted', 'success');
             fetchData();
+            fetchBalance();
             setDeletingLeaveId(null);
         } catch (error: any) {
             showToast(error.message || 'Failed to delete leave', 'error');
@@ -225,11 +286,20 @@ const LeaveList = () => {
             </div>
 
             {/* Balances Section */}
-            {viewMode === 'my' && balances && (
-                <div className="leave-balances-grid">
-                    <BalanceCard title="Casual Leave" used={balances.used.casualLeave} total={balances.casualLeave} />
-                    <BalanceCard title="Sick Leave" used={balances.used.sickLeave} total={balances.sickLeave} />
-                    <BalanceCard title="Earned Leave" used={balances.used.earnedLeave} total={balances.earnedLeave} />
+            {viewMode === 'my' && (
+                <div className="leave-balances-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    {Object.keys(leaveLimits).map(type => {
+                        const total = leaveLimits[type];
+                        const used = getUsedDays(type);
+                        return (
+                            <BalanceCard 
+                                key={type}
+                                title={type} 
+                                used={used} 
+                                total={total} 
+                            />
+                        );
+                    })}
                 </div>
             )}
 
@@ -365,8 +435,8 @@ const LeaveList = () => {
                                         <HighlightText text={leave.type} highlight={searchQuery} />
                                     </div>
                                 </td>
-                                <td>{new Date(leave.startDate).toLocaleDateString()}</td>
-                                <td>{new Date(leave.endDate).toLocaleDateString()}</td>
+                                <td>{formatAppDate(leave.startDate)}</td>
+                                <td>{formatAppDate(leave.endDate)}</td>
                                 <td>{leave.daysCount}</td>
                                 <td className="leave-reason-cell">
                                     <HighlightText text={leave.reason} highlight={searchQuery} />
@@ -426,18 +496,14 @@ const LeaveList = () => {
                             value={formData.type}
                             onChange={e => setFormData({ ...formData, type: e.target.value })}
                         >
-                            <option>Casual Leave</option>
-                            <option>Sick Leave</option>
-                            <option>Earned Leave</option>
-                            <option>Comp Off</option>
-                            <option>Maternity Leave</option>
+                            {leaveTypes.map(type => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
                         </select>
                     </div>
                     <div className="input-group">
                         <label className="input-label">Start Date</label>
-                        <input
-                            type="date"
-                            className="input-field"
+                        <AppDateInput
                             value={formData.startDate}
                             min={todayStr}
                             onChange={e => setFormData({ ...formData, startDate: e.target.value })}
@@ -446,9 +512,7 @@ const LeaveList = () => {
                     </div>
                     <div className="input-group">
                         <label className="input-label">End Date</label>
-                        <input
-                            type="date"
-                            className="input-field"
+                        <AppDateInput
                             value={formData.endDate}
                             min={formData.startDate || todayStr}
                             onChange={e => setFormData({ ...formData, endDate: e.target.value })}

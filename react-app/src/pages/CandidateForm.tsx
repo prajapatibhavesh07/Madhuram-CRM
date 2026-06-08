@@ -5,6 +5,7 @@ import Popover from '../components/Popover';
 import { useToast } from '../context/ToastContext';
 import DocumentPreviewModal from '../components/DocumentPreviewModal';
 import Modal from '../components/Modal';
+import AppDateInput from '../components/AppDateInput';
 import { industryTypes } from '../constants/IndustryConstants';
 import {
     XIcon, BriefcaseIcon, UserIcon, GlobeIcon, FacebookIcon,
@@ -561,7 +562,7 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                         </div>
                         <div className="input-group">
                             <label>Date of Birth</label>
-                            <input type="date" id="dob" value={formData.dob} onChange={handleInputChange} className="input-field" required max={new Date().toLocaleDateString('en-CA')} />
+                            <AppDateInput id="dob" value={formData.dob} onChange={handleInputChange} required max={new Date().toISOString().split('T')[0]} />
                         </div>
                         <div className="input-group">
                             <label>Age (Auto-calculated)</label>
@@ -1006,15 +1007,15 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                                 </div>
                                 <div className="input-group">
                                     <label>Upload Date</label>
-                                    <input type="date" value={t.uploaddate} onChange={e => handleTicketChange(i, 'uploaddate', e.target.value)} className="input-field" />
+                                    <AppDateInput value={t.uploaddate} onChange={e => handleTicketChange(i, 'uploaddate', e.target.value)} />
                                 </div>
                                 <div className="input-group">
                                     <label>EXP Date (Auto)</label>
-                                    <input type="date" value={t.expdate} readOnly className="input-field input-readonly" />
+                                    <AppDateInput value={t.expdate} readOnly={true} />
                                 </div>
                                 <div className="input-group">
                                     <label>CRT Date</label>
-                                    <input type="date" value={t.crtdate} onChange={e => handleTicketChange(i, 'crtdate', e.target.value)} className="input-field" />
+                                    <AppDateInput value={t.crtdate} onChange={e => handleTicketChange(i, 'crtdate', e.target.value)} />
                                 </div>
                                 <div className="input-group">
                                     <label>Type</label>
@@ -1201,9 +1202,7 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                     </div>
                     <div className="input-group">
                         <label>Start Date</label>
-                        <input
-                            type="date"
-                            className="input-field"
+                        <AppDateInput
                             value={workForm.startDate}
                             onChange={(e) => setWorkForm({ ...workForm, startDate: e.target.value })}
                         />
@@ -1211,9 +1210,7 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                     {!workForm.currentlyWorking && (
                         <div className="input-group">
                             <label>End Date</label>
-                            <input
-                                type="date"
-                                className="input-field"
+                            <AppDateInput
                                 value={workForm.endDate}
                                 onChange={(e) => setWorkForm({ ...workForm, endDate: e.target.value })}
                             />
@@ -1305,18 +1302,14 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                     </div>
                     <div className="input-group">
                         <label>Start Date</label>
-                        <input
-                            type="date"
-                            className="input-field"
+                        <AppDateInput
                             value={educationForm.startDate}
                             onChange={(e) => setEducationForm({ ...educationForm, startDate: e.target.value })}
                         />
                     </div>
                     <div className="input-group">
                         <label>End Date</label>
-                        <input
-                            type="date"
-                            className="input-field"
+                        <AppDateInput
                             value={educationForm.endDate}
                             onChange={(e) => setEducationForm({ ...educationForm, endDate: e.target.value })}
                         />

@@ -5,8 +5,9 @@ import { api, BASE_URL } from '../services/api';
 import {
     UserIcon, ClockIcon,
     AlertCircleIcon, BellIcon, ListIcon, SparklesIcon,
-    CheckIcon, UsersIcon
+    CheckIcon, UsersIcon, TrashIcon, PlusIcon, CopyIcon, ChevronDownIcon, FileTextIcon
 } from '../icons';
+import { useToast } from '../context/ToastContext';
 import DashboardManager from './DashboardManager';
 import DashboardCandidate from './DashboardCandidate';
 import CandidateSummaryCard from '../components/CandidateSummaryCard';
@@ -16,6 +17,7 @@ import {
 import CandidateDetailModal from '../components/CandidateDetailModal';
 import Drawer from '../components/Drawer';
 import Modal from '../components/Modal';
+import AppDateInput from '../components/AppDateInput';
 
 const EmployeeCard = ({ employee }: { employee: any }) => {
     return (
@@ -68,6 +70,131 @@ const EmployeeCard = ({ employee }: { employee: any }) => {
 const Dashboard = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const { showToast } = useToast();
+
+    // Ticket Modal States
+    const [isTicketModalOpen, setIsTicketModalOpen] = React.useState(false);
+    const [ticketModalCandidate, setTicketModalCandidate] = React.useState<any>(null);
+    const [modalTickets, setModalTickets] = React.useState<any[]>([]);
+    const [modalSelectedTicketIndices, setModalSelectedTicketIndices] = React.useState<number[]>([]);
+    const [modalTicketForm, setModalTicketForm] = React.useState<{ companyMulti: string[]; dateFiled: string }>({
+        companyMulti: [],
+        dateFiled: ''
+    });
+    const [isModalCompanyDropdownOpen, setIsModalCompanyDropdownOpen] = React.useState(false);
+    const [uniqueOpenCompanies, setUniqueOpenCompanies] = React.useState<string[]>([]);
+
+    React.useEffect(() => {
+        const fetchOpenCompanies = async () => {
+            try {
+                const jobs = await api.getJobs({ status: 'Open' });
+                const companies = jobs.map((job: any) => job.company).filter(Boolean);
+                setUniqueOpenCompanies(Array.from(new Set(companies)).sort() as string[]);
+            } catch (err) {
+                console.error("Error fetching open companies:", err);
+            }
+        };
+        fetchOpenCompanies();
+    }, []);
+
+    const handleOpenTicketEditModal = (candidate: any) => {
+        setTicketModalCandidate(candidate);
+        setModalTickets(candidate.tickets || []);
+        setModalTicketForm({
+            companyMulti: candidate.companyMulti || [],
+            dateFiled: candidate.dateFiled ? candidate.dateFiled.split('H')[0].split('T')[0] : ''
+        });
+        setModalSelectedTicketIndices([]);
+        setIsTicketModalOpen(true);
+    };
+
+    const handleModalUpdateTicket = (index: number, field: string, value: any) => {
+        setModalTickets(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], [field]: value };
+            return updated;
+        });
+    };
+
+    const handleModalAddTicketRow = () => {
+        const today = new Date().toISOString().split('T')[0];
+        const newTicket = {
+            ticketNo: '',
+            companyName: '',
+            uploaddate: today,
+            expdate: '',
+            crtdate: '',
+            type: 'Banca',
+            portalStatus: 'Pending'
+        };
+        setModalTickets(prev => [...prev, newTicket]);
+    };
+
+    const handleModalCloneTicket = (index: number) => {
+        const ticketToClone = modalTickets[index];
+        const clonedTicket = { ...ticketToClone, ticketNo: '' };
+        setModalTickets(prev => {
+            const updated = [...prev];
+            updated.splice(index + 1, 0, clonedTicket);
+            return updated;
+        });
+    };
+
+    const handleModalDeleteTicket = (index: number) => {
+        setModalTickets(prev => prev.filter((_, i) => i !== index));
+        setModalSelectedTicketIndices(prev => prev.filter(i => i !== index));
+    };
+
+    const handleModalToggleSelectTicket = (index: number) => {
+        setModalSelectedTicketIndices(prev => 
+            prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
+        );
+    };
+
+    const handleModalSelectAllTickets = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.checked) {
+            setModalSelectedTicketIndices(modalTickets.map((_, i) => i));
+        } else {
+            setModalSelectedTicketIndices([]);
+        }
+    };
+
+    const handleModalBulkDeleteTickets = () => {
+        setModalTickets(prev => prev.filter((_, i) => !modalSelectedTicketIndices.includes(i)));
+        setModalSelectedTicketIndices([]);
+    };
+
+    const handleModalSaveTickets = async () => {
+        if (!ticketModalCandidate) return;
+        try {
+            const updateData = {
+                tickets: modalTickets,
+                companyMulti: modalTicketForm.companyMulti,
+                dateFiled: modalTicketForm.dateFiled
+            };
+            await api.updateCandidate(ticketModalCandidate._id, updateData);
+            
+            // Update local state in stats so it is reflected immediately
+            setStats((prev: any) => {
+                if (!prev || !prev.pendingTickets) return prev;
+                const updatedTickets = prev.pendingTickets.map((c: any) => 
+                    c._id === ticketModalCandidate._id 
+                        ? { ...c, tickets: modalTickets, companyMulti: modalTicketForm.companyMulti, dateFiled: modalTicketForm.dateFiled }
+                        : c
+                );
+                return { ...prev, pendingTickets: updatedTickets };
+            });
+
+            showToast('Tickets saved successfully. A notification has been sent to all team members.', 'success');
+            setIsTicketModalOpen(false);
+            
+            await fetchData();
+        } catch (error) {
+            console.error('Save tickets error:', error);
+            showToast('Failed to save tickets', 'error');
+        }
+    };
+
     const [startDate, setStartDate] = React.useState<string>(() => {
         const d = new Date();
         const start = new Date(d.getFullYear(), d.getMonth(), 1);
@@ -89,7 +216,7 @@ const Dashboard = () => {
 
     const isFirstMount = React.useRef(true);
 
-    const isManager = user?.role === 'Manager';
+    const isManager = user?.role === 'Manager' || user?.role === 'Team Lead' || user?.role === 'Operation Manager';
     const isCandidate = user?.role === 'Normal User';
 
     const fetchData = React.useCallback(async () => {
@@ -103,7 +230,10 @@ const Dashboard = () => {
 
             const myHistory = await api.getMyAttendance();
             const todayStr = new Date().toDateString();
-            const today = myHistory.find((r: any) => new Date(r.date).toDateString() === todayStr);
+            const today = myHistory.find((r: any) => {
+                const recordDate = r.inTime ? new Date(r.inTime) : new Date(r.date);
+                return recordDate.toDateString() === todayStr;
+            });
             setTodayAttendance(today);
         } catch (error) {
             console.error('Dashboard fetch error:', error);
@@ -197,9 +327,7 @@ const Dashboard = () => {
         return <DashboardCandidate stats={stats} />;
     }
 
-    if (isManager) {
-        return <DashboardManager stats={stats} />;
-    }
+
 
     // High fidelity trend data (exact curves for aesthetic wave effects) scaled dynamically per live data
     const getTrendData = (type: string, currentValue: number) => {
@@ -394,6 +522,463 @@ const Dashboard = () => {
     const inProgressTasksCount = currentUserEmp?.taskCounts?.['In Progress'];
     const pendingTasksCount = currentUserEmp?.taskCounts?.Todo;
 
+    if (isManager) {
+        return (
+            <div className="fade-in dashboard-layout" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
+                <DashboardManager stats={stats} onOpenTicketModal={handleOpenTicketEditModal} />
+                
+                {/* 4 Bottom Widgets Row */}
+                <div className="dashboard-bottom-grid" style={{ marginTop: '0.5rem' }}>
+                    {/* Column 1: Task Completion */}
+                    <TaskCompletionWidget
+                        completed={completedTasksCount}
+                        inProgress={inProgressTasksCount}
+                        pending={pendingTasksCount}
+                    />
+
+                    {/* Column 2: Attendance */}
+                    <AttendanceWidget
+                        rate={stats?.attendance?.present}
+                        todayAttendance={todayAttendance}
+                        period={attendancePeriod}
+                        onPeriodChange={setAttendancePeriod}
+                        onPunchIn={handlePunchIn}
+                        onPunchOut={handlePunchOut}
+                    />
+
+                    {/* Column 3: Recent Candidates */}
+                    <div className="widget-card" style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="widget-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Recent Candidates</h3>
+                            <Link to="/candidates" style={{ fontSize: '0.72rem', fontWeight: 700, color: '#3b82f6', textDecoration: 'none' }}>View all</Link>
+                        </div>
+
+                        <div className="candidate-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                            {bottomCandidates.map((c, i) => (
+                                <div
+                                    key={i}
+                                    onClick={() => {
+                                        if (c._id) {
+                                            setSelectedCandidate(c);
+                                            setIsDetailModalOpen(true);
+                                        }
+                                    }}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        borderBottom: i === bottomCandidates.length - 1 ? 'none' : '1px solid #f8fafc',
+                                        paddingBottom: '6px',
+                                        cursor: c._id ? 'pointer' : 'default'
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '28px',
+                                        height: '28px',
+                                        borderRadius: '50%',
+                                        background: `${c.color}15`,
+                                        color: c.color,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 'bold',
+                                        minWidth: '28px'
+                                    }}>
+                                        {c.initial}
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#1e293b' }}>{c.name}</span>
+                                        <span style={{ fontSize: '0.65rem', color: '#64748b', marginTop: '1px' }}>{c.location}</span>
+                                    </div>
+                                    <div style={{ width: '56px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '4px' }}>
+                                        <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#475569' }}>{c.progress}%</span>
+                                        <div style={{ width: '100%', height: '4px', background: '#f1f5f9', borderRadius: '2px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${c.progress}%`, height: '100%', background: '#3b82f6', borderRadius: '2px' }}></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Column 4: Total Candidates Feed */}
+                    <div className="widget-card" style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', padding: '1.25rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+                        <div className="widget-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>Total Candidates Feed</h3>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#3b82f6', cursor: 'pointer' }}>View all</span>
+                        </div>
+
+                        <div className="candidate-list" style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                            {finalFeed.map((item, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'start', gap: '8px' }}>
+                                    <div style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        borderRadius: '50%',
+                                        background: `${item.color}12`,
+                                        color: item.color,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        minWidth: '24px',
+                                        marginTop: '2px'
+                                    }}>
+                                        <item.icon size={12} />
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                                        <span style={{ fontSize: '0.68rem', color: '#64748b' }}>{item.title}</span>
+                                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#1e293b', marginTop: '1px' }}>{item.name}</span>
+                                        <span style={{ fontSize: '0.62rem', color: '#94a3b8', marginTop: '1px' }}>{item.subtitle}</span>
+                                    </div>
+                                    <span style={{ fontSize: '0.62rem', color: '#94a3b8', whiteSpace: 'nowrap', marginTop: '2px' }}>{item.time}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {renderTicketEditModal()}
+                {punchModal && (
+                    <Modal
+                        isOpen={punchModal.isOpen}
+                        onClose={() => setPunchModal(null)}
+                        title={punchModal.title}
+                        size="md"
+                    >
+                        <div style={{ padding: '10px' }}>
+                            <p style={{ fontSize: '0.85rem', color: '#475569', margin: 0, lineHeight: '1.4' }}>
+                                {punchModal.message}
+                            </p>
+                        </div>
+                    </Modal>
+                )}
+            </div>
+        );
+    }
+
+    function renderTicketEditModal() {
+        if (!isTicketModalOpen || !ticketModalCandidate) return null;
+        return (
+            <Modal
+                isOpen={isTicketModalOpen}
+                onClose={() => setIsTicketModalOpen(false)}
+                title={`Manage Tickets - ${ticketModalCandidate.name}`}
+                size="xl"
+                footer={
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', width: '100%' }}>
+                        <button
+                            onClick={() => setIsTicketModalOpen(false)}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                border: '1px solid #cbd5e1',
+                                background: '#fff',
+                                color: '#475569',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleModalSaveTickets}
+                            style={{
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                border: 'none',
+                                background: '#3b82f6',
+                                color: '#fff',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Save Changes
+                        </button>
+                    </div>
+                }
+            >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Upper Fields (Company Multi & Date Filed) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div className="form-field-group">
+                            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>Company (Multi-select)</label>
+                            <div className="custom-multi-select-container" style={{ position: 'relative' }}>
+                                <div 
+                                    className="multi-select-trigger" 
+                                    onClick={() => setIsModalCompanyDropdownOpen(!isModalCompanyDropdownOpen)}
+                                    style={{
+                                        border: '1px solid #cbd5e1',
+                                        borderRadius: '8px',
+                                        padding: '8px 12px',
+                                        fontSize: '0.8rem',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        cursor: 'pointer',
+                                        background: '#fff'
+                                    }}
+                                >
+                                    <span className="trigger-value" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '300px' }}>
+                                        {modalTicketForm.companyMulti.length > 0
+                                            ? modalTicketForm.companyMulti.join(', ')
+                                            : 'Select Companies'}
+                                    </span>
+                                    <ChevronDownIcon size={16} />
+                                </div>
+
+                                {isModalCompanyDropdownOpen && (
+                                    <div 
+                                        className="multi-select-dropdown"
+                                        style={{
+                                            position: 'absolute',
+                                            top: '100%',
+                                            left: 0,
+                                            right: 0,
+                                            zIndex: 100,
+                                            background: '#fff',
+                                            border: '1px solid #cbd5e1',
+                                            borderRadius: '8px',
+                                            marginTop: '4px',
+                                            boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                                            maxHeight: '200px',
+                                            overflowY: 'auto'
+                                        }}
+                                    >
+                                        <div className="dropdown-search" style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 12px', borderBottom: '1px solid #e2e8f0' }}>
+                                            <button className="text-link-button" style={{ fontSize: '11px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => setModalTicketForm({ ...modalTicketForm, companyMulti: uniqueOpenCompanies })}>Select All</button>
+                                            <button className="text-link-button" style={{ fontSize: '11px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} onClick={() => setModalTicketForm({ ...modalTicketForm, companyMulti: [] })}>Deselect All</button>
+                                        </div>
+                                        <div className="dropdown-options">
+                                            {uniqueOpenCompanies.map((company: string) => {
+                                                const isSelected = modalTicketForm.companyMulti.includes(company);
+                                                return (
+                                                    <div
+                                                        key={company}
+                                                        className={`multi-option-item ${isSelected ? 'selected' : ''}`}
+                                                        style={{
+                                                            padding: '8px 12px',
+                                                            fontSize: '0.8rem',
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            cursor: 'pointer',
+                                                            background: isSelected ? '#f1f5f9' : 'transparent'
+                                                        }}
+                                                        onClick={() => {
+                                                            const current = [...modalTicketForm.companyMulti];
+                                                            if (isSelected) {
+                                                                setModalTicketForm({ ...modalTicketForm, companyMulti: current.filter(c => c !== company) });
+                                                            } else {
+                                                                setModalTicketForm({ ...modalTicketForm, companyMulti: [...current, company] });
+                                                            }
+                                                        }}
+                                                    >
+                                                        <span>{company}</span>
+                                                        {isSelected && <CheckIcon size={14} color="#3b82f6" />}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <div className="form-field-group">
+                            <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>Date Filed</label>
+                            <AppDateInput
+                                style={{
+                                    border: '1px solid #cbd5e1',
+                                    borderRadius: '8px',
+                                    padding: '8px 12px',
+                                    fontSize: '0.8rem',
+                                    width: '100%',
+                                    outline: 'none',
+                                    boxSizing: 'border-box'
+                                }}
+                                value={modalTicketForm.dateFiled}
+                                onChange={(e) => setModalTicketForm({ ...modalTicketForm, dateFiled: e.target.value })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Tickets Table */}
+                    <div className="tickets-management-section" style={{ marginTop: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
+                                <FileTextIcon size={16} /> Tickets Management
+                            </h4>
+                            {modalSelectedTicketIndices.length > 0 && (
+                                <button 
+                                    onClick={handleModalBulkDeleteTickets}
+                                    style={{
+                                        padding: '4px 10px',
+                                        fontSize: '11px',
+                                        borderRadius: '4px',
+                                        background: '#ef4444',
+                                        color: '#fff',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                    }}
+                                >
+                                    <TrashIcon size={12} /> Delete Selected ({modalSelectedTicketIndices.length})
+                                </button>
+                            )}
+                        </div>
+
+                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+                                <thead>
+                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                                        <th style={{ width: '40px', padding: '10px', textAlign: 'center' }}>
+                                            <input 
+                                                type="checkbox" 
+                                                onChange={handleModalSelectAllTickets} 
+                                                checked={modalTickets.length > 0 && modalSelectedTicketIndices.length === modalTickets.length}
+                                                style={{ cursor: 'pointer' }}
+                                            />
+                                        </th>
+                                        <th style={{ padding: '10px' }}>Ticket No</th>
+                                        <th style={{ padding: '10px' }}>Company</th>
+                                        <th style={{ padding: '10px' }}>Upload Date</th>
+                                        <th style={{ padding: '10px' }}>Exp. Date</th>
+                                        <th style={{ padding: '10px' }}>Crt Date</th>
+                                        <th style={{ padding: '10px' }}>Type</th>
+                                        <th style={{ padding: '10px' }}>Status Changes</th>
+                                        <th style={{ padding: '10px', textAlign: 'center' }}>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {modalTickets.map((t: any, idx: number) => (
+                                        <tr key={`modal-ticket-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                                            <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                                <input 
+                                                    type="checkbox" 
+                                                    checked={modalSelectedTicketIndices.includes(idx)} 
+                                                    onChange={() => handleModalToggleSelectTicket(idx)}
+                                                    style={{ cursor: 'pointer' }}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <input
+                                                    type="text"
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
+                                                    value={t.ticketNo || ''}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'ticketNo', e.target.value)}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <select
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', background: '#fff' }}
+                                                    value={t.companyName || ''}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'companyName', e.target.value)}
+                                                    disabled={!t.ticketNo?.trim()}
+                                                >
+                                                    <option value="">Select Company</option>
+                                                    {modalTicketForm.companyMulti.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <AppDateInput
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
+                                                    value={t.uploaddate ? t.uploaddate.split('T')[0] : ''}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'uploaddate', e.target.value)}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <AppDateInput
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
+                                                    value={t.expdate ? t.expdate.split('T')[0] : ''}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'expdate', e.target.value)}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <AppDateInput
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
+                                                    value={t.crtdate ? t.crtdate.split('T')[0] : ''}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'crtdate', e.target.value)}
+                                                />
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <select
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', background: '#fff' }}
+                                                    value={t.type || 'Banca'}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'type', e.target.value)}
+                                                >
+                                                    <option>Banca</option>
+                                                    <option>Agency</option>
+                                                    <option>Direct</option>
+                                                </select>
+                                            </td>
+                                            <td style={{ padding: '10px' }}>
+                                                <select
+                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', background: '#fff' }}
+                                                    value={t.portalStatus || 'Pending'}
+                                                    onChange={(e) => handleModalUpdateTicket(idx, 'portalStatus', e.target.value)}
+                                                >
+                                                    <option>Pending</option>
+                                                    <option>Completed</option>
+                                                    <option>In Progress</option>
+                                                </select>
+                                            </td>
+                                            <td style={{ padding: '10px', textAlign: 'center' }}>
+                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
+                                                    <button
+                                                        onClick={() => handleModalCloneTicket(idx)}
+                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }}
+                                                        title="Clone Ticket"
+                                                    >
+                                                        <CopyIcon size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleModalDeleteTicket(idx)}
+                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
+                                                        title="Delete Ticket"
+                                                    >
+                                                        <TrashIcon size={14} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {modalTickets.length === 0 && (
+                                        <tr>
+                                            <td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                                                No tickets found. Add one to get started.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        <button
+                            onClick={handleModalAddTicketRow}
+                            style={{
+                                marginTop: '10px',
+                                padding: '6px 12px',
+                                background: '#f8fafc',
+                                border: '1px dashed #cbd5e1',
+                                borderRadius: '6px',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                color: '#475569',
+                                cursor: 'pointer',
+                                width: '100%'
+                            }}
+                        >
+                            + Add New Ticket
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+        );
+    };
+
     return (
         <div className="fade-in dashboard-layout" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
 
@@ -401,8 +986,7 @@ const Dashboard = () => {
             <div className="dashboard-header-container" style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '6px 12px', fontSize: '0.78rem', fontWeight: 600, color: '#475569', boxShadow: '0 1px 2px rgba(0,0,0,0.01)' }}>
                     <span style={{ color: '#64748b' }}>From:</span>
-                    <input
-                        type="date"
+                    <AppDateInput
                         value={startDate}
                         max={endDate}
                         onChange={(e) => setStartDate(e.target.value)}
@@ -410,8 +994,7 @@ const Dashboard = () => {
                     />
                     <span style={{ color: '#cbd5e1' }}>|</span>
                     <span style={{ color: '#64748b' }}>To:</span>
-                    <input
-                        type="date"
+                    <AppDateInput
                         value={endDate}
                         min={startDate}
                         onChange={(e) => setEndDate(e.target.value)}
@@ -516,7 +1099,7 @@ const Dashboard = () => {
                                         onClick={() => {
                                             if (item.candidate) {
                                                 if (activeList === 'tickets') {
-                                                    navigate(`/candidates?id=${item.candidate._id}`);
+                                                    handleOpenTicketEditModal(item.candidate);
                                                 } else {
                                                     setSelectedCandidate(item.candidate);
                                                     setIsDetailModalOpen(true);
@@ -565,12 +1148,7 @@ const Dashboard = () => {
                                 ))}
                             </div>
 
-                            {/* View All Footer */}
-                            <div style={{ display: 'flex', justifyContent: 'center', borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: 'auto' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    View all reminders <span style={{ fontSize: '10px' }}>→</span>
-                                </span>
-                            </div>
+
                         </div>
 
                         {/* Candidate Summary Card */}
@@ -802,6 +1380,9 @@ const Dashboard = () => {
                     </div>
                 </Modal>
             )}
+
+            {/* Render Ticket Edit Modal */}
+            {renderTicketEditModal()}
         </div>
     );
 };

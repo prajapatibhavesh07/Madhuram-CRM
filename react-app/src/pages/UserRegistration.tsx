@@ -4,6 +4,7 @@ import { type Role } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { api, BASE_URL } from '../services/api';
 import { UsersIcon, UserIcon, MailIcon, PhoneIcon, ShieldIcon, FileTextIcon, BriefcaseIcon, CalendarIcon, PlusIcon, TrashIcon, UploadIcon } from '../icons';
+import AppDateInput from '../components/AppDateInput';
 
 const UserRegistration = () => {
     const { id } = useParams();
@@ -16,8 +17,9 @@ const UserRegistration = () => {
     const [customRoleId, setCustomRoleId] = useState('');
     const [managerId, setManagerId] = useState('');
     const [teamLeadId, setTeamLeadId] = useState('');
-    const [managers, setManagers] = useState<any[]>([]);
-    const [teamLeads, setTeamLeads] = useState<any[]>([]);
+    const [allRoles, setAllRoles] = useState<Role[]>([]);
+    const [parentRoleName, setParentRoleName] = useState<string | null>(null);
+    const [parentRoleUsers, setParentRoleUsers] = useState<any[]>([]);
     const [customRoles, setCustomRoles] = useState<Role[]>([]);
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
@@ -57,6 +59,7 @@ const UserRegistration = () => {
     useEffect(() => {
         api.getRoles().then(roles => {
             setCustomRoles(roles.filter((r: Role) => !r.isBuiltIn));
+            setAllRoles(roles);
         }).catch(console.error);
     }, []);
 
@@ -71,8 +74,8 @@ const UserRegistration = () => {
                 setCustomRoleId(user.customRoleId || '');
                 if (user.customRoleId) {
                 }
-                if (user.role === 'Team Lead') setManagerId(user.managerId?._id || user.managerId || '');
-                if (user.role === 'Recruiter') setTeamLeadId(user.teamLeadId?._id || user.teamLeadId || '');
+                setManagerId(user.managerId?._id || user.managerId || '');
+                setTeamLeadId(user.teamLeadId?._id || user.teamLeadId || '');
                 setPhone(user.phone || '');
                 setCompanyPhone(user.companyPhone || '');
                 setWhatsapp(user.whatsapp || '');
@@ -91,12 +94,16 @@ const UserRegistration = () => {
     }, [id, customRoles]);
 
     useEffect(() => {
-        if (role === 'Team Lead') {
-            api.getUsers('Manager').then(setManagers).catch(console.error);
-        } else if (role === 'Recruiter') {
-            api.getUsers('Team Lead').then(setTeamLeads).catch(console.error);
+        const selectedRoleObj = allRoles.find(r => r.name === role);
+        if (selectedRoleObj && selectedRoleObj.reportsTo) {
+            const parentRole = selectedRoleObj.reportsTo;
+            setParentRoleName(parentRole);
+            api.getUsers(parentRole).then(setParentRoleUsers).catch(console.error);
+        } else {
+            setParentRoleName(null);
+            setParentRoleUsers([]);
         }
-    }, [role]);
+    }, [role, allRoles]);
 
     useEffect(() => {
         if (sameAsPhone) setWhatsapp(phone);
@@ -138,8 +145,11 @@ const UserRegistration = () => {
             formData.append('role', role);
             if (customRoleId) formData.append('customRoleId', customRoleId);
             if (password) formData.append('password', password);
-            if (role === 'Team Lead' && managerId) formData.append('managerId', managerId);
-            if (role === 'Recruiter' && teamLeadId) formData.append('teamLeadId', teamLeadId);
+            if (parentRoleName === 'Team Lead' && teamLeadId) {
+                formData.append('teamLeadId', teamLeadId);
+            } else if (parentRoleName && managerId) {
+                formData.append('managerId', managerId);
+            }
             formData.append('phone', phone);
             formData.append('companyPhone', companyPhone);
             formData.append('whatsapp', whatsapp);
@@ -311,38 +321,28 @@ const UserRegistration = () => {
                                             </div>
                                         </div>
 
-                                        {role === 'Team Lead' && (
+                                        {parentRoleName && (
                                             <div className="modern-input-group">
-                                                <label>Assign Manager</label>
+                                                <label>Assign {parentRoleName}</label>
                                                 <div className="input-with-icon-modern">
                                                     <UserIcon size={18} />
                                                     <select
-                                                        value={managerId}
-                                                        onChange={(e) => setManagerId(e.target.value)}
+                                                        value={parentRoleName === 'Team Lead' ? teamLeadId : managerId}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            if (parentRoleName === 'Team Lead') {
+                                                                setTeamLeadId(val);
+                                                                setManagerId('');
+                                                            } else {
+                                                                setManagerId(val);
+                                                                setTeamLeadId('');
+                                                            }
+                                                        }}
                                                         required
                                                     >
-                                                        <option value="">Select Manager</option>
-                                                        {managers.map(m => (
-                                                            <option key={m._id} value={m._id}>{m.name}</option>
-                                                        ))}
-                                                    </select>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {role === 'Recruiter' && (
-                                            <div className="modern-input-group">
-                                                <label>Assign Team Lead</label>
-                                                <div className="input-with-icon-modern">
-                                                    <UserIcon size={18} />
-                                                    <select
-                                                        value={teamLeadId}
-                                                        onChange={(e) => setTeamLeadId(e.target.value)}
-                                                        required
-                                                    >
-                                                        <option value="">Select Team Lead</option>
-                                                        {teamLeads.map(tl => (
-                                                            <option key={tl._id} value={tl._id}>{tl.name}</option>
+                                                        <option value="">Select {parentRoleName}</option>
+                                                        {parentRoleUsers.map(u => (
+                                                            <option key={u._id} value={u._id}>{u.name}</option>
                                                         ))}
                                                     </select>
                                                 </div>
@@ -406,14 +406,10 @@ const UserRegistration = () => {
 
                                         <div className="modern-input-group">
                                             <label>Date of Birth</label>
-                                            <div className="input-with-icon-modern">
-                                                <CalendarIcon size={18} />
-                                                <input
-                                                    type="date"
-                                                    value={dob}
-                                                    onChange={(e) => setDob(e.target.value)}
-                                                />
-                                            </div>
+                                            <AppDateInput
+                                                value={dob}
+                                                onChange={(e) => setDob(e.target.value)}
+                                            />
                                         </div>
 
                                         <div className="modern-input-group">

@@ -394,6 +394,7 @@ exports.getCandidates = async (req, res) => {
         let mongoQuery = Candidate.find(query)
             .populate('createdBy', 'name')
             .populate('approvedBy', 'name')
+            .populate('assignedOperationManager', 'name')
             .sort({ createdAt: -1 });
 
         if (limit) {
@@ -448,16 +449,22 @@ exports.approveCandidate = async (req, res) => {
 // Get Candidate by ID
 exports.getCandidateById = async (req, res) => {
     try {
-        const candidate = await Candidate.findById(req.params.id);
+        const candidate = await Candidate.findById(req.params.id)
+            .populate('createdBy', 'name')
+            .populate('approvedBy', 'name')
+            .populate('assignedOperationManager', 'name');
         if (!candidate) return res.status(404).json({ message: "Candidate not found" });
 
-        // Role-base check - non-admins can view candidates they created OR assigned to them via tasks
+        // Role-base check - non-admins can view candidates they or their subordinates created OR assigned to them via tasks
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
-            const isCreator = candidate.createdBy && candidate.createdBy.toString() === req.user._id.toString();
+            const subordinateIds = await getSubordinateIds(req.user._id);
+            const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
+
+            const isCreatorOrSubordinate = candidate.createdBy && allowedUserIds.includes(candidate.createdBy.toString());
             const hasTask = await Task.exists({ assignedTo: req.user._id, candidate: candidate._id });
             
-            if (!isCreator && !hasTask) {
-                return res.status(403).json({ message: "Access denied: You can only view candidates you created or those assigned to you." });
+            if (!isCreatorOrSubordinate && !hasTask) {
+                return res.status(403).json({ message: "Access denied: You can only view candidates you or your subordinates created, or those assigned to you." });
             }
         }
 
@@ -479,13 +486,16 @@ exports.updateCandidate = async (req, res) => {
         const currentCandidate = await Candidate.findById(req.params.id);
         if (!currentCandidate) return res.status(404).json({ message: "Candidate not found" });
 
-        // Role-base check - non-admins can update candidates they created OR assigned to them via tasks
+        // Role-base check - non-admins can update candidates they or their subordinates created OR assigned to them via tasks
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
-            const isCreator = currentCandidate.createdBy && currentCandidate.createdBy.toString() === req.user._id.toString();
+            const subordinateIds = await getSubordinateIds(req.user._id);
+            const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
+
+            const isCreatorOrSubordinate = currentCandidate.createdBy && allowedUserIds.includes(currentCandidate.createdBy.toString());
             const hasTask = await Task.exists({ assignedTo: req.user._id, candidate: currentCandidate._id });
 
-            if (!isCreator && !hasTask) {
-                return res.status(403).json({ message: "Access denied: You can only update candidates you created or those assigned to you." });
+            if (!isCreatorOrSubordinate && !hasTask) {
+                return res.status(403).json({ message: "Access denied: You can only update candidates you or your subordinates created, or those assigned to you." });
             }
         }
 
@@ -597,6 +607,39 @@ exports.updateCandidate = async (req, res) => {
         );
 
         if (!candidate) return res.status(404).json({ message: "Candidate not found" });
+
+        // Send notification to all connected users if tickets are updated
+        if (candidateData.tickets) {
+            User.find({ 
+                role: { $in: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter'] },
+                status: 'Active',
+                _id: { $ne: req.user._id }
+            }).then(activeUsers => {
+                activeUsers.forEach(activeUser => {
+                    notificationService.sendNotification(activeUser._id, {
+                        title: 'Tickets Updated',
+                        message: `${req.user.name} updated tickets for candidate: ${candidate.name}`,
+                        type: 'info',
+                        path: `/candidates?id=${candidate._id}`,
+                        channels: ['in-app']
+                    }).catch(e => console.error("Error sending ticket update notification:", e));
+                });
+            }).catch(err => console.error("Error finding users for ticket update notification:", err));
+
+            // Send specific notification to the recruiter (createdBy) if updated by a Manager or Operation Manager
+            if (['Manager', 'Operation Manager'].includes(req.user.role)) {
+                const recruiterId = candidate.createdBy;
+                if (recruiterId && recruiterId.toString() !== req.user._id.toString()) {
+                    notificationService.sendNotification(recruiterId, {
+                        title: 'Ticket Submitted by Manager',
+                        message: `${req.user.name} (${req.user.role}) has submitted ticket data for your candidate: ${candidate.name}`,
+                        type: 'info',
+                        path: `/candidates?id=${candidate._id}`,
+                        channels: ['in-app']
+                    }).catch(e => console.error("Error sending recruiter ticket notification:", e));
+                }
+            }
+        }
 
         // AI: Trigger Scoring (Async)
         if (candidate.jobId) {

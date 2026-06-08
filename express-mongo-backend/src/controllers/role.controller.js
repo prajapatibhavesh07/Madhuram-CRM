@@ -107,6 +107,13 @@ const BUILT_IN_DEFAULTS = {
 
 const seedBuiltInRoles = async () => {
     const builtInRoleNames = Object.keys(BUILT_IN_DEFAULTS);
+    const BUILT_IN_REPORTS_TO = {
+        'HR': 'Admin',
+        'Manager': 'HR',
+        'Team Lead': 'Manager',
+        'Recruiter': 'Team Lead',
+        'Normal User': 'Recruiter'
+    };
     
     for (const roleName of builtInRoleNames) {
         const existingRole = await Role.findOne({ name: roleName, isBuiltIn: true });
@@ -117,10 +124,15 @@ const seedBuiltInRoles = async () => {
                              roleName === 'Admin' ? 'Administrative access' :
                              `System ${roleName.toLowerCase()} role`,
                 isBuiltIn: true,
-                permissions: BUILT_IN_DEFAULTS[roleName]
+                permissions: BUILT_IN_DEFAULTS[roleName],
+                reportsTo: BUILT_IN_REPORTS_TO[roleName] || null
             });
             await role.save();
             console.log(`Seeded built-in role: ${roleName}`);
+        } else if (existingRole.reportsTo === undefined || existingRole.reportsTo === null) {
+            existingRole.reportsTo = BUILT_IN_REPORTS_TO[roleName] || null;
+            await existingRole.save();
+            console.log(`Updated reportsTo for built-in role: ${roleName}`);
         }
     }
 };
@@ -154,7 +166,7 @@ const getRoleById = async (req, res) => {
 
 const createRole = async (req, res) => {
     try {
-        const { name, description, permissions } = req.body;
+        const { name, description, permissions, reportsTo } = req.body;
         
         const existingRole = await Role.findOne({ name });
         if (existingRole) {
@@ -180,6 +192,7 @@ const createRole = async (req, res) => {
             description: description || '',
             isBuiltIn: false,
             permissions: processedPermissions,
+            reportsTo: reportsTo || null,
             createdBy: req.user._id
         });
 
@@ -203,7 +216,7 @@ const updateRole = async (req, res) => {
             return res.status(403).json({ message: 'Cannot modify Super Admin role' });
         }
 
-        const { name, description, permissions } = req.body;
+        const { name, description, permissions, reportsTo } = req.body;
 
         if (name && name !== role.name) {
             const existingRole = await Role.findOne({ name, _id: { $ne: role._id } });
@@ -215,6 +228,10 @@ const updateRole = async (req, res) => {
 
         if (description !== undefined) {
             role.description = description;
+        }
+
+        if (reportsTo !== undefined) {
+            role.reportsTo = reportsTo || null;
         }
 
         if (permissions) {

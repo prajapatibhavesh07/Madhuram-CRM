@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { formatAppDate } from '../utils/helpers';
 import { createPortal } from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api, BASE_URL } from '../services/api';
@@ -83,10 +84,15 @@ interface Candidate {
     noticePeriod?: string;
     aiScore?: number;
     aiSummary?: string;
-    aiMatchBasis?: string;
+    aiMatchBasis?: string | {
+        matchReason?: string;
+        skillFit?: string;
+        experienceGap?: string;
+    };
     prLocation?: string;
     avatarUrl?: string;
     willingToRelocate?: boolean;
+    assignedOperationManager?: { _id: string; name: string } | string;
 }
 // Helper functions defined at the top or inside if needed
 const HighlightText = ({ text, highlight, maxLength }: { text: string | number, highlight: string, maxLength?: number }) => {
@@ -110,18 +116,7 @@ const HighlightText = ({ text, highlight, maxLength }: { text: string | number, 
     );
 };
 const formatDate = (dateString?: string) => {
-    if (!dateString) return '-';
-    try {
-        const date = new Date(dateString);
-        if (isNaN(date.getTime())) return '-';
-        return date.toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        });
-    } catch (e) {
-        return '-';
-    }
+    return formatAppDate(dateString);
 };
 
 
@@ -287,20 +282,21 @@ const CandidateList = () => {
     const [switchingLoading, setSwitchingLoading] = useState(false);
     const [bulkSwitchingLoading, setBulkSwitchingLoading] = useState(false);
     const [assigningOperation, setAssigningOperation] = useState<Candidate | null>(null);
+    const [hoveredMenuItem, setHoveredMenuItem] = useState<string | null>(null);
     const [newRecruiterId, setNewRecruiterId] = useState('');
     const [operationFormData, setOperationFormData] = useState({
         companies: [] as string[],
         tickets: [] as Ticket[],
         date: new Date().toISOString().split('T')[0],
         filedDate: new Date().toISOString().split('T')[0],
-        verify: 'No',
-        noPoachInCV: 'No',
-        removeNoPoach: 'No',
-        readyToMove: 'No',
-        vehicle: 'No',
-        graduation: 'No',
-        degreeCertificate: 'No',
-        rehiring: 'No',
+        verify: '',
+        noPoachInCV: '',
+        removeNoPoach: '',
+        readyToMove: '',
+        vehicle: '',
+        graduation: '',
+        degreeCertificate: '',
+        rehiring: '',
         remark: ''
     });
     const [submittingOperation, setSubmittingOperation] = useState(false);
@@ -448,18 +444,21 @@ const CandidateList = () => {
         { key: 'status', label: 'Recruitment Status' },
         { key: 'isApproved', label: 'Approved' },
         { key: 'createdBy', label: 'Created By' },
+        { key: 'assignedOperationManager', label: 'Operation Manager' },
         { key: 'createdAt', label: 'Created At' },
         { key: 'updatedAt', label: 'Updated At' }
     ];
 
     const [columnOrder, setColumnOrder] = useState<string[]>(() => {
         const saved = localStorage.getItem('candidate_column_order');
-        return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.key);
+        const order = saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.key);
+        return [...new Set(order)] as string[];
     });
 
     const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
         const saved = localStorage.getItem('candidate_visible_columns');
-        return saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.key);
+        const visible = saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.key);
+        return [...new Set(visible)] as string[];
     });
 
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
@@ -621,6 +620,19 @@ const CandidateList = () => {
     // Persistence & Reconciliation
     useEffect(() => {
         const allKeys = ALL_COLUMNS.map(c => c.key);
+
+        // Deduplicate columnOrder and visibleColumns in state if they contain duplicates
+        const uniqueOrder = [...new Set(columnOrder)];
+        if (uniqueOrder.length !== columnOrder.length) {
+            setColumnOrder(uniqueOrder);
+            return;
+        }
+
+        const uniqueVisible = [...new Set(visibleColumns)];
+        if (uniqueVisible.length !== visibleColumns.length) {
+            setVisibleColumns(uniqueVisible);
+            return;
+        }
         
         // Save to localStorage
         localStorage.setItem('candidate_column_order', JSON.stringify(columnOrder));
@@ -631,12 +643,12 @@ const CandidateList = () => {
         // Reconcile if missing keys (e.g. after update)
         const missingFromOrder = allKeys.filter(k => !columnOrder.includes(k));
         if (missingFromOrder.length > 0) {
-            setColumnOrder(prev => [...prev, ...missingFromOrder]);
+            setColumnOrder(prev => [...new Set([...prev, ...missingFromOrder])]);
         }
 
         const missingFromVisible = allKeys.filter(k => !visibleColumns.includes(k));
         if (missingFromVisible.length > 0) {
-            setVisibleColumns(prev => [...prev, ...missingFromVisible]);
+            setVisibleColumns(prev => [...new Set([...prev, ...missingFromVisible])]);
         }
     }, [columnOrder, visibleColumns, pinnedColumns, columnWidths, ALL_COLUMNS.length]);
 
@@ -965,20 +977,21 @@ const CandidateList = () => {
         if (assigningOperation) {
             const existingTickets = (assigningOperation.tickets || []) as Ticket[];
             const existingCompanies = [...new Set(existingTickets.map(t => t.companyName))];
+            const checklist = (assigningOperation as any).fulfillmentChecklist || {};
             setOperationFormData({
                 date: new Date().toISOString().split('T')[0],
-                filedDate: new Date().toISOString().split('T')[0],
+                filedDate: (assigningOperation as any).filedDate || new Date().toISOString().split('T')[0],
                 companies: existingCompanies,
                 tickets: existingTickets,
-                verify: 'No',
-                noPoachInCV: 'No',
-                removeNoPoach: 'No',
-                readyToMove: 'No',
-                vehicle: 'No',
-                graduation: 'No',
-                degreeCertificate: 'No',
-                rehiring: 'No',
-                remark: ''
+                verify: checklist.verifyField || '',
+                noPoachInCV: checklist.noPoachInCV || '',
+                removeNoPoach: checklist.removeNoPoach || '',
+                readyToMove: checklist.readyToMove || '',
+                vehicle: checklist.vehicle || '',
+                graduation: checklist.graduation || '',
+                degreeCertificate: checklist.degreeCertificate || '',
+                rehiring: checklist.rehiring || '',
+                remark: (assigningOperation as any).operationRemark || ''
             });
         }
     }, [assigningOperation]);
@@ -1048,6 +1061,20 @@ const CandidateList = () => {
             showToast(error.message || 'Failed to update operation details', 'error');
         } finally {
             setSubmittingOperation(false);
+        }
+    };
+
+    const handleAssignToOperationManager = async (candidateId: string, opManagerId: string) => {
+        try {
+            await api.updateCandidate(candidateId, { assignedOperationManager: opManagerId });
+            showToast('Candidate assigned to Operation Manager successfully', 'success');
+            fetchCandidates();
+            if (activeTab === 'Validation') {
+                fetchUnapprovedCandidates();
+            }
+        } catch (error: any) {
+            console.error('Error assigning operation manager:', error);
+            showToast(error.message || 'Failed to assign Operation Manager', 'error');
         }
     };
     useEffect(() => {
@@ -2517,7 +2544,7 @@ const CandidateList = () => {
                                                             if (isVisible) {
                                                                 setVisibleColumns(prev => prev.filter(k => k !== colKey));
                                                             } else {
-                                                                setVisibleColumns(prev => [...prev, colKey]);
+                                                                setVisibleColumns(prev => [...new Set([...prev, colKey])]);
                                                             }
                                                         }}
                                                     />
@@ -2771,7 +2798,8 @@ const CandidateList = () => {
                         minWidth: '220px',
                         padding: '4px',
                         display: 'flex',
-                        flexDirection: 'column'
+                        flexDirection: 'column',
+                        overflow: 'visible'
                     }}
                 >
                     <div className="menu-item" onClick={() => { handleEditCandidate(rowMenu.candidate._id); setRowMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem', fontWeight: '500' }}>
@@ -2811,9 +2839,101 @@ const CandidateList = () => {
                         <span>Switch Candidate</span>
                     </div>
                     {canAssignToOperation && (
-                        <div className="menu-item" onClick={() => { setAssigningOperation(rowMenu.candidate); setRowMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem' }}>
-                            <SettingsIcon size={16} color="#64748b" />
-                            <span>Assign to Operation</span>
+                        <div 
+                            className="menu-item"
+                            onMouseEnter={() => setHoveredMenuItem('assign_to_operation')}
+                            onMouseLeave={() => setHoveredMenuItem(null)}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setHoveredMenuItem(prev => prev === 'assign_to_operation' ? null : 'assign_to_operation');
+                            }}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'space-between',
+                                gap: '10px', 
+                                padding: '10px 12px', 
+                                cursor: 'pointer', 
+                                borderRadius: '4px', 
+                                fontSize: '0.875rem',
+                                position: 'relative',
+                                background: hoveredMenuItem === 'assign_to_operation' ? '#f8fafc' : 'transparent'
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <SettingsIcon size={16} color="#64748b" />
+                                <span>Assign to Operation</span>
+                            </div>
+                            <span style={{ fontSize: '8px', color: '#64748b' }}>▶</span>
+                            
+                            {/* Hover Submenu */}
+                            {hoveredMenuItem === 'assign_to_operation' && (
+                                <div 
+                                    className="row-actions-container" 
+                                    style={{
+                                        position: 'absolute',
+                                        left: '100%',
+                                        top: 0,
+                                        background: 'white',
+                                        borderRadius: '8px',
+                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                        border: '1px solid #e2e8f0',
+                                        minWidth: '200px',
+                                        padding: '4px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        zIndex: 3100
+                                    }}
+                                >
+                                    {users
+                                        .filter(u => u.status === 'Active' && u.role === 'Operation Manager')
+                                        .map(u => (
+                                            <div 
+                                                key={u._id} 
+                                                className="menu-item" 
+                                                onClick={(e) => { 
+                                                    e.stopPropagation(); 
+                                                    handleAssignToOperationManager(rowMenu.candidate._id, u._id); 
+                                                    setRowMenu(null); 
+                                                }}
+                                                style={{ 
+                                                    padding: '10px 12px', 
+                                                    cursor: 'pointer', 
+                                                    borderRadius: '4px', 
+                                                    fontSize: '0.875rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px',
+                                                    background: 'transparent'
+                                                }}
+                                                onMouseEnter={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                                                onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                            >
+                                                <div style={{
+                                                    width: '24px',
+                                                    height: '24px',
+                                                    borderRadius: '50%',
+                                                    background: '#e0e7ff',
+                                                    color: '#4f46e5',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontWeight: 'bold',
+                                                    fontSize: '0.75rem'
+                                                }}>
+                                                    {u.name.charAt(0).toUpperCase()}
+                                                </div>
+                                                <span>{u.name}</span>
+                                            </div>
+                                        ))
+                                    }
+                                    {users.filter(u => u.status === 'Active' && u.role === 'Operation Manager').length === 0 && (
+                                        <div style={{ padding: '10px 12px', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center' }}>
+                                            No active Operation Managers
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                         </div>
                     )}
                     {canDelete && (

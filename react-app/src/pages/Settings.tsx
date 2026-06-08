@@ -1,10 +1,10 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SaveIcon, SettingsIcon, MailIcon, SlidersIcon } from '../icons';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 const Settings = () => {
-    const [activeTab, setActiveTab] = useState<'smtp' | 'emails' | 'general' | 'payroll' | 'apiKeys'>('smtp');
+    const [activeTab, setActiveTab] = useState<'smtp' | 'emails' | 'general' | 'attendance' | 'leavePolicy' | 'payroll' | 'apiKeys'>('smtp');
     const [showPassword, setShowPassword] = useState(false);
     const [showApiKey, setShowApiKey] = useState(false);
     const [showTwilioToken, setShowTwilioToken] = useState(false);
@@ -32,8 +32,29 @@ const Settings = () => {
 
     const [generalConfig, setGeneralConfig] = useState({
         companyName: 'CRM Enterprise',
-        website: 'https://example.com'
+        website: 'https://example.com',
+        dateFormat: 'DD/MM/YYYY'
     });
+
+    const [attendanceConfig, setAttendanceConfig] = useState({
+        workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+        shiftStart: '09:00',
+        shiftEnd: '18:00',
+        halfDayThreshold: '11:00'
+    });
+
+    const [leavePolicyConfig, setLeavePolicyConfig] = useState({
+        casualLeaveDays: 12,
+        sickLeaveDays: 12,
+        earnedLeaveDays: 15,
+        paternityLeaveDays: 15,
+        maternityLeaveDays: 90,
+        customLeaveTypes: [] as { name: string; days: number }[],
+        enableSandwichRule: false
+    });
+
+    const [newCustomLeaveName, setNewCustomLeaveName] = useState('');
+    const [newCustomLeaveDays, setNewCustomLeaveDays] = useState('');
 
     const [payrollConfig, setPayrollConfig] = useState({
         logo: '',
@@ -60,9 +81,28 @@ const Settings = () => {
             const data = await api.getSettings();
             if (data.smtp) setSmtpConfig(data.smtp);
             if (data.emails) setEmailConfig(data.emails);
-            if (data.general) setGeneralConfig(data.general);
+            if (data.general) setGeneralConfig({
+                companyName: data.general.companyName || 'CRM Enterprise',
+                website: data.general.website || '',
+                dateFormat: data.general.dateFormat || 'DD/MM/YYYY'
+            });
             if (data.payroll) setPayrollConfig(data.payroll);
             if (data.apiKeys) setApiKeysConfig(data.apiKeys);
+            if (data.attendance) setAttendanceConfig({
+                workingDays: data.attendance.workingDays || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+                shiftStart: data.attendance.shiftStart || '09:00',
+                shiftEnd: data.attendance.shiftEnd || '18:00',
+                halfDayThreshold: data.attendance.halfDayThreshold || '11:00'
+            });
+            if (data.leavePolicy) setLeavePolicyConfig({
+                casualLeaveDays: data.leavePolicy.casualLeaveDays ?? 12,
+                sickLeaveDays: data.leavePolicy.sickLeaveDays ?? 12,
+                earnedLeaveDays: data.leavePolicy.earnedLeaveDays ?? 15,
+                paternityLeaveDays: data.leavePolicy.paternityLeaveDays ?? 15,
+                maternityLeaveDays: data.leavePolicy.maternityLeaveDays ?? 90,
+                customLeaveTypes: data.leavePolicy.customLeaveTypes || [],
+                enableSandwichRule: !!data.leavePolicy.enableSandwichRule
+            });
         } catch (error) {
             console.error('Error fetching settings:', error);
             showToast('Failed to load settings', 'error');
@@ -75,6 +115,33 @@ const Settings = () => {
         fetchSettings();
     }, []);
 
+    const handleAddCustomLeave = () => {
+        if (!newCustomLeaveName || !newCustomLeaveDays) {
+            showToast('Please provide both leave name and number of days.', 'error');
+            return;
+        }
+        if (leavePolicyConfig.customLeaveTypes.some(c => c.name.toLowerCase() === newCustomLeaveName.toLowerCase())) {
+            showToast('A custom leave type with this name already exists.', 'error');
+            return;
+        }
+        setLeavePolicyConfig({
+            ...leavePolicyConfig,
+            customLeaveTypes: [
+                ...leavePolicyConfig.customLeaveTypes,
+                { name: newCustomLeaveName, days: parseInt(newCustomLeaveDays) || 0 }
+            ]
+        });
+        setNewCustomLeaveName('');
+        setNewCustomLeaveDays('');
+    };
+
+    const handleRemoveCustomLeave = (index: number) => {
+        setLeavePolicyConfig({
+            ...leavePolicyConfig,
+            customLeaveTypes: leavePolicyConfig.customLeaveTypes.filter((_, i) => i !== index)
+        });
+    };
+
     const handleSave = async () => {
         setSaving(true);
         try {
@@ -83,8 +150,13 @@ const Settings = () => {
                 emails: emailConfig,
                 general: generalConfig,
                 payroll: payrollConfig,
-                apiKeys: apiKeysConfig
+                apiKeys: apiKeysConfig,
+                attendance: attendanceConfig,
+                leavePolicy: leavePolicyConfig
             });
+            if (generalConfig.dateFormat) {
+                localStorage.setItem('dateFormat', generalConfig.dateFormat);
+            }
             showToast('Settings saved successfully', 'success');
         } catch (error: any) {
             showToast(error.message || 'Failed to save settings', 'error');
@@ -97,7 +169,7 @@ const Settings = () => {
         <div className="fade-in" style={{ padding: '0 1rem' }}>
             <div style={{ marginBottom: '2rem' }}>
                 <h1 style={{ fontSize: '1.875rem', fontWeight: '800', color: '#1e293b', marginBottom: '0.5rem' }}>System Settings</h1>
-                <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Configure your system preferences, SMTP, and company communication channels.</p>
+                <p style={{ color: '#64748b', fontSize: '0.95rem' }}>Configure your system preferences, SMTP, shift schedules, and employee leave policies.</p>
             </div>
 
             <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr' }}>
@@ -105,12 +177,16 @@ const Settings = () => {
                     <div style={{
                         display: 'flex',
                         borderBottom: '1px solid var(--border)',
-                        padding: '0 1.5rem'
+                        padding: '0 1.5rem',
+                        overflowX: 'auto',
+                        whiteSpace: 'nowrap'
                     }}>
                         {[
                             { id: 'smtp', label: 'SMTP Configuration', icon: <SlidersIcon size={18} /> },
                             { id: 'emails', label: 'Company Emails', icon: <MailIcon size={18} /> },
-                            { id: 'general', label: 'General', icon: <SettingsIcon size={18} /> },
+                            { id: 'general', label: 'General Settings', icon: <SettingsIcon size={18} /> },
+                            { id: 'attendance', label: 'Attendance & Shift', icon: <SlidersIcon size={18} /> },
+                            { id: 'leavePolicy', label: 'Leave Policy', icon: <SettingsIcon size={18} /> },
                             { id: 'payroll', label: 'Payroll PDF Settings', icon: <SettingsIcon size={18} /> },
                             { id: 'apiKeys', label: 'API & Security', icon: <SlidersIcon size={18} /> }
                         ].map(tab => (
@@ -129,7 +205,8 @@ const Settings = () => {
                                     color: activeTab === tab.id ? 'var(--primary)' : '#64748b',
                                     borderBottom: activeTab === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
                                     cursor: 'pointer',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.2s',
+                                    flexShrink: 0
                                 }}
                             >
                                 {tab.icon}
@@ -284,6 +361,218 @@ const Settings = () => {
                                             value={generalConfig.website}
                                             onChange={e => setGeneralConfig({ ...generalConfig, website: e.target.value })}
                                         />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>System Date Format</label>
+                                        <select
+                                            className="input-field"
+                                            value={generalConfig.dateFormat}
+                                            onChange={e => setGeneralConfig({ ...generalConfig, dateFormat: e.target.value })}
+                                        >
+                                            <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 08/06/2026)</option>
+                                            <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 06/08/2026)</option>
+                                            <option value="YYYY-MM-DD">YYYY-MM-DD (e.g. 2026-06-08)</option>
+                                            <option value="DD-MM-YYYY">DD-MM-YYYY (e.g. 08-06-2026)</option>
+                                            <option value="DD MMM YYYY">DD MMM YYYY (e.g. 08 Jun 2026)</option>
+                                            <option value="DD MMMM YYYY">DD MMMM YYYY (e.g. 08 June 2026)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'attendance' && (
+                            <div className="fade-in">
+                                <div className="compact-grid" style={{ gap: '2rem' }}>
+                                    <div className="input-group full-width">
+                                        <label style={{ fontWeight: 'bold', marginBottom: '0.5rem', display: 'block' }}>Working Days of the Week</label>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '0.5rem' }}>
+                                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => {
+                                                const isChecked = attendanceConfig.workingDays.includes(day);
+                                                return (
+                                                    <label key={day} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isChecked}
+                                                            onChange={() => {
+                                                                const newDays = isChecked
+                                                                    ? attendanceConfig.workingDays.filter(d => d !== day)
+                                                                    : [...attendanceConfig.workingDays, day];
+                                                                setAttendanceConfig({ ...attendanceConfig, workingDays: newDays });
+                                                            }}
+                                                        />
+                                                        {day}
+                                                    </label>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Shift Start Time</label>
+                                        <input
+                                            type="time"
+                                            className="input-field"
+                                            value={attendanceConfig.shiftStart}
+                                            onChange={e => setAttendanceConfig({ ...attendanceConfig, shiftStart: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Shift End Time</label>
+                                        <input
+                                            type="time"
+                                            className="input-field"
+                                            value={attendanceConfig.shiftEnd}
+                                            onChange={e => setAttendanceConfig({ ...attendanceConfig, shiftEnd: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="input-group full-width">
+                                        <label>Half Day Calculation Time Threshold</label>
+                                        <input
+                                            type="time"
+                                            className="input-field"
+                                            value={attendanceConfig.halfDayThreshold}
+                                            onChange={e => setAttendanceConfig({ ...attendanceConfig, halfDayThreshold: e.target.value })}
+                                        />
+                                        <p style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.5rem' }}>Employees punching in after this time will automatically be marked as having a "Half Day" leave.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'leavePolicy' && (
+                            <div className="fade-in">
+                                <div className="compact-grid" style={{ gap: '2.5rem' }}>
+                                    {/* Sandwich Rule Toggle */}
+                                    <div className="input-group full-width" style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1rem', fontWeight: 'bold', cursor: 'pointer' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={leavePolicyConfig.enableSandwichRule}
+                                                onChange={e => setLeavePolicyConfig({ ...leavePolicyConfig, enableSandwichRule: e.target.checked })}
+                                                style={{ width: '18px', height: '18px' }}
+                                            />
+                                            Enable Sandwich Leave Rule
+                                        </label>
+                                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginTop: '0.5rem', marginLeft: '28px' }}>
+                                            If enabled, weekends and holidays that fall between two leave days (on both sides) will be counted as leave days.
+                                        </p>
+                                    </div>
+
+                                    {/* Standard Leave Limits */}
+                                    <div className="full-width" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+                                        <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '1.25rem' }}>Standard Leave Limits (Annual)</h3>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                            <div className="input-group">
+                                                <label>Casual Leave (CL) Days</label>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    min="0"
+                                                    value={leavePolicyConfig.casualLeaveDays}
+                                                    onChange={e => setLeavePolicyConfig({ ...leavePolicyConfig, casualLeaveDays: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                            <div className="input-group">
+                                                <label>Sick Leave (SL) Days</label>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    min="0"
+                                                    value={leavePolicyConfig.sickLeaveDays}
+                                                    onChange={e => setLeavePolicyConfig({ ...leavePolicyConfig, sickLeaveDays: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                            <div className="input-group">
+                                                <label>Earned Leave (EL) Days</label>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    min="0"
+                                                    value={leavePolicyConfig.earnedLeaveDays}
+                                                    onChange={e => setLeavePolicyConfig({ ...leavePolicyConfig, earnedLeaveDays: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                            <div className="input-group">
+                                                <label>Paternity Leave Days</label>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    min="0"
+                                                    value={leavePolicyConfig.paternityLeaveDays}
+                                                    onChange={e => setLeavePolicyConfig({ ...leavePolicyConfig, paternityLeaveDays: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                            <div className="input-group">
+                                                <label>Maternity Leave Days</label>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    min="0"
+                                                    value={leavePolicyConfig.maternityLeaveDays}
+                                                    onChange={e => setLeavePolicyConfig({ ...leavePolicyConfig, maternityLeaveDays: parseInt(e.target.value) || 0 })}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Custom Leave Types */}
+                                    <div className="full-width" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '1.5rem' }}>
+                                        <h3 style={{ fontSize: '1rem', fontWeight: 'bold', color: '#1e293b', marginBottom: '0.25rem' }}>Custom Leave Types</h3>
+                                        <p style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '1.25rem' }}>Create any other custom leave types and assign their annual day limit.</p>
+                                        
+                                        {/* List of Custom Leaves */}
+                                        {leavePolicyConfig.customLeaveTypes.length > 0 && (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '1.5rem', maxWidth: '500px' }}>
+                                                {leavePolicyConfig.customLeaveTypes.map((item, idx) => (
+                                                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '8px' }}>
+                                                        <span style={{ fontWeight: '600', fontSize: '0.9rem', color: '#1e293b' }}>{item.name}</span>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                            <span style={{ fontSize: '0.85rem', color: '#64748b' }}>{item.days} Days / year</span>
+                                                            <button 
+                                                                type="button" 
+                                                                onClick={() => handleRemoveCustomLeave(idx)}
+                                                                style={{ border: 'none', background: 'none', color: '#ef4444', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.85rem' }}
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Add Custom Leave Input Block */}
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', alignItems: 'flex-end', maxWidth: '600px' }}>
+                                            <div className="input-group" style={{ flex: 2, minWidth: '200px', marginBottom: 0 }}>
+                                                <label>Leave Type Name</label>
+                                                <input
+                                                    type="text"
+                                                    className="input-field"
+                                                    placeholder="e.g. Study Leave"
+                                                    value={newCustomLeaveName}
+                                                    onChange={e => setNewCustomLeaveName(e.target.value)}
+                                                />
+                                            </div>
+                                            <div className="input-group" style={{ flex: 1, minWidth: '100px', marginBottom: 0 }}>
+                                                <label>Annual Days Limit</label>
+                                                <input
+                                                    type="number"
+                                                    className="input-field"
+                                                    min="1"
+                                                    placeholder="e.g. 5"
+                                                    value={newCustomLeaveDays}
+                                                    onChange={e => setNewCustomLeaveDays(e.target.value)}
+                                                />
+                                            </div>
+                                            <button 
+                                                type="button" 
+                                                onClick={handleAddCustomLeave}
+                                                className="btn btn-primary"
+                                                style={{ width: 'auto', padding: '0.5rem 1.25rem', height: '38px', whiteSpace: 'nowrap' }}
+                                            >
+                                                Add Custom Leave
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

@@ -17,7 +17,26 @@ const settingsSchema = new mongoose.Schema({
     },
     general: {
         companyName: { type: String, default: "CRM Enterprise" },
-        website: String
+        website: String,
+        dateFormat: { type: String, default: "DD/MM/YYYY" }
+    },
+    attendance: {
+        workingDays: { type: [String], default: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] },
+        shiftStart: { type: String, default: "09:00" },
+        shiftEnd: { type: String, default: "18:00" },
+        halfDayThreshold: { type: String, default: "11:00" }
+    },
+    leavePolicy: {
+        casualLeaveDays: { type: Number, default: 12 },
+        sickLeaveDays: { type: Number, default: 12 },
+        earnedLeaveDays: { type: Number, default: 15 },
+        paternityLeaveDays: { type: Number, default: 15 },
+        maternityLeaveDays: { type: Number, default: 90 },
+        customLeaveTypes: [{
+            name: { type: String, required: true },
+            days: { type: Number, required: true }
+        }],
+        enableSandwichRule: { type: Boolean, default: false }
     },
     payroll: {
         logo: { type: String, default: "" }, // Base64 string

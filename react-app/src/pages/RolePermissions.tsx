@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';
-import { CheckIcon, XIcon, EditIcon, TrashIcon, PlusIcon, RefreshIcon } from '../icons';
+import { CheckIcon, XIcon, EditIcon, TrashIcon, PlusIcon, RefreshIcon, GripVerticalIcon } from '../icons';
 
 interface Permission {
     view: boolean;
@@ -15,6 +15,7 @@ interface Role {
     name: string;
     description: string;
     isBuiltIn: boolean;
+    reportsTo?: string;
     permissions: Record<string, Permission>;
     createdBy?: { name: string; email: string };
     createdAt?: string;
@@ -46,9 +47,12 @@ const RolePermissions = () => {
     const [wasValidated, setWasValidated] = useState(false);
     const [showModal, setShowModal] = useState(false);
     const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [activeTab, setActiveTab] = useState<'list' | 'hierarchy'>('list');
+    const [draggedRole, setDraggedRole] = useState<Role | null>(null);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
+        reportsTo: '',
         permissions: {} as Record<string, Permission>
     });
 
@@ -60,6 +64,34 @@ const RolePermissions = () => {
             showToast('Failed to fetch roles', 'error');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleReparent = async (roleId: string, parentRoleName: string | null) => {
+        try {
+            await api.updateRole(roleId, {
+                reportsTo: parentRoleName
+            });
+            showToast('Reporting relationship updated successfully', 'success');
+            fetchRoles();
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Failed to update reporting structure', 'error');
+        }
+    };
+
+    const handleInsertBetween = async (draggedRoleId: string, parentRoleName: string | null, childRoleId: string, draggedRoleName: string) => {
+        try {
+            await api.updateRole(draggedRoleId, {
+                reportsTo: parentRoleName
+            });
+            await api.updateRole(childRoleId, {
+                reportsTo: draggedRoleName
+            });
+            showToast('Role inserted and hierarchy rearranged successfully', 'success');
+            fetchRoles();
+        } catch (error) {
+            showToast(error instanceof Error ? error.message : 'Failed to rearrange roles', 'error');
+            fetchRoles();
         }
     };
 
@@ -78,6 +110,7 @@ const RolePermissions = () => {
         setFormData({
             name: role?.name || '',
             description: role?.description || '',
+            reportsTo: role?.reportsTo || '',
             permissions
         });
     };
@@ -120,6 +153,7 @@ const RolePermissions = () => {
                 await api.updateRole(editingRole._id, {
                     name: formData.name,
                     description: formData.description,
+                    reportsTo: formData.reportsTo || null,
                     permissions: formData.permissions
                 });
                 showToast('Role updated successfully', 'success');
@@ -127,6 +161,7 @@ const RolePermissions = () => {
                 await api.createRole({
                     name: formData.name,
                     description: formData.description,
+                    reportsTo: formData.reportsTo || null,
                     permissions: formData.permissions
                 });
                 showToast('Role created successfully', 'success');
@@ -181,7 +216,25 @@ const RolePermissions = () => {
                 <p className="roles-subtitle">Manage default roles and create custom roles with granular permissions.</p>
             </div>
 
-            <div className="roles-grid">
+            <div className="candidate-list-tabs" style={{ marginBottom: '1.5rem', display: 'flex', gap: '1rem', borderBottom: '1px solid var(--border)' }}>
+                <button
+                    onClick={() => setActiveTab('list')}
+                    className={`candidate-tab-btn ${activeTab === 'list' ? 'active' : ''}`}
+                    style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', fontWeight: '600' }}
+                >
+                    Roles & Permissions
+                </button>
+                <button
+                    onClick={() => setActiveTab('hierarchy')}
+                    className={`candidate-tab-btn ${activeTab === 'hierarchy' ? 'active' : ''}`}
+                    style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', fontWeight: '600' }}
+                >
+                    Organization Flow (Drag & Drop)
+                </button>
+            </div>
+
+            {activeTab === 'list' ? (
+                <div className="roles-grid">
                 <div className="widget-card">
                     <div className="roles-section-header">
                         <div>
@@ -350,8 +403,41 @@ const RolePermissions = () => {
                             <span>Delete - Can remove records</span>
                         </div>
                     </div>
+                    </div>
                 </div>
-            </div>
+                ) : (
+                    <div className={`role-tree-container fade-in ${draggedRole ? 'dragging-active' : ''}`}>
+                        <div className="root-drop-zone-wrapper">
+                            <RootDropZone 
+                                onReparent={handleReparent}
+                                draggedRole={draggedRole}
+                                visibleRoles={roles}
+                            />
+                        </div>
+                        
+                        <div className="role-tree-nodes">
+                            {getRoots(roles).length === 0 ? (
+                                <div className="empty-state-container">
+                                    <p>No hierarchy roots defined.</p>
+                                    <p>Configure a role's parent or drag a role out to set up reporting lines.</p>
+                                </div>
+                            ) : (
+                                getRoots(roles).map(root => (
+                                    <RoleTreeNode 
+                                        key={root._id}
+                                        role={root}
+                                        visibleRoles={roles}
+                                        draggedRole={draggedRole}
+                                        setDraggedRole={setDraggedRole}
+                                        onReparent={handleReparent}
+                                        onInsert={handleInsertBetween}
+                                        showToast={showToast}
+                                    />
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
 
             {showModal && (
                 <div className="permissions-modal-overlay" onClick={handleCloseModal}>
@@ -390,6 +476,22 @@ const RolePermissions = () => {
                                         onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
                                         placeholder="Brief description of this role"
                                     />
+                                </div>
+                                <div className="input-group">
+                                    <label>Reports To (Parent Role)</label>
+                                    <select
+                                        className="input-field"
+                                        value={formData.reportsTo}
+                                        onChange={e => setFormData(prev => ({ ...prev, reportsTo: e.target.value }))}
+                                    >
+                                        <option value="">None / Reports to Admin</option>
+                                        {roles
+                                            .filter(r => r.name !== formData.name) // Prevent reporting to itself
+                                            .map(r => (
+                                                <option key={r._id} value={r.name}>{r.name}</option>
+                                            ))
+                                        }
+                                    </select>
                                 </div>
                             </div>
 
@@ -439,6 +541,249 @@ const RolePermissions = () => {
                             </div>
                         </form>
                     </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+
+// --- Role Hierarchy Tree Utilities and Sub-components ---
+
+const wouldCreateCycle = (roleName: string, targetParentName: string | null, allRoles: Role[]): boolean => {
+    if (!targetParentName) return false;
+    if (roleName === targetParentName) return true;
+    
+    let currentParentName: string | null = targetParentName;
+    const maxDepth = 100;
+    let depth = 0;
+    
+    while (currentParentName && depth < maxDepth) {
+        const parentRole = allRoles.find(r => r.name === currentParentName);
+        if (!parentRole) break;
+        
+        if (parentRole.reportsTo === roleName) {
+            return true;
+        }
+        currentParentName = parentRole.reportsTo || null;
+        depth++;
+    }
+    
+    return false;
+};
+
+const getRoots = (rolesList: Role[]) => {
+    const visibleRoles = rolesList.filter(r => r.name !== 'Super Admin');
+    return visibleRoles.filter(r => {
+        return !r.reportsTo || !visibleRoles.some(other => other.name === r.reportsTo);
+    });
+};
+
+const RootDropZone = ({ onReparent, draggedRole }: { onReparent: any; draggedRole: Role | null; visibleRoles: Role[] }) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+    
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (draggedRole && draggedRole.reportsTo) {
+            setIsDragOver(true);
+            e.dataTransfer.dropEffect = 'move';
+        }
+    };
+
+    const handleDragLeave = () => {
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        if (draggedRole && draggedRole.reportsTo) {
+            onReparent(draggedRole._id, null);
+        }
+    };
+
+    const active = !!(draggedRole && draggedRole.reportsTo);
+
+    return (
+        <div 
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`root-drop-zone ${isDragOver ? 'drag-over' : ''} ${active ? 'active' : 'inactive'}`}
+        >
+            Drop here to set "{draggedRole?.name}" as Top-Level Role (Reports to None)
+        </div>
+    );
+};
+
+const InsertDropZone = ({
+    parentRole,
+    childRole,
+    draggedRole,
+    onInsert,
+    visibleRoles
+}: {
+    parentRole: Role;
+    childRole: Role;
+    draggedRole: Role | null;
+    onInsert: (draggedRoleId: string, parentRoleName: string | null, childRoleId: string, draggedRoleName: string) => void;
+    visibleRoles: Role[];
+}) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    const isVisible = !!(
+        draggedRole &&
+        draggedRole._id !== childRole._id &&
+        draggedRole.name !== parentRole.name &&
+        !wouldCreateCycle(draggedRole.name, parentRole.name, visibleRoles)
+    );
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (isVisible) {
+            setIsDragOver(true);
+            e.dataTransfer.dropEffect = 'move';
+        }
+    };
+
+    const handleDragLeave = () => {
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        if (isVisible && draggedRole) {
+            onInsert(draggedRole._id, parentRole.name, childRole._id, draggedRole.name);
+        }
+    };
+
+    return (
+        <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`insert-drop-zone ${isDragOver ? 'drag-over' : ''} ${isVisible ? 'active' : 'inactive'}`}
+        >
+            <div className="insert-line"></div>
+        </div>
+    );
+};
+
+const RoleTreeNode = ({ 
+    role, 
+    visibleRoles, 
+    draggedRole, 
+    setDraggedRole, 
+    onReparent,
+    onInsert,
+    showToast
+}: { 
+    role: Role; 
+    visibleRoles: Role[]; 
+    draggedRole: Role | null; 
+    setDraggedRole: (r: Role | null) => void;
+    onReparent: (id: string, parentName: string | null) => void;
+    onInsert: (draggedRoleId: string, parentRoleName: string | null, childRoleId: string, draggedRoleName: string) => void;
+    showToast: any;
+}) => {
+    const [isDragOver, setIsDragOver] = useState(false);
+    const visibleSubRoles = visibleRoles.filter(r => r.name !== 'Super Admin');
+    const children = visibleSubRoles.filter(r => r.reportsTo === role.name);
+
+    const handleDragStart = (e: React.DragEvent) => {
+        setDraggedRole(role);
+        e.dataTransfer.setData('text/plain', role._id);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragEnd = () => {
+        setDraggedRole(null);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (draggedRole && draggedRole._id !== role._id) {
+            if (!wouldCreateCycle(draggedRole.name, role.name, visibleRoles)) {
+                setIsDragOver(true);
+                e.dataTransfer.dropEffect = 'move';
+            }
+        }
+    };
+
+    const handleDragLeave = () => {
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        if (draggedRole && draggedRole._id !== role._id) {
+            if (wouldCreateCycle(draggedRole.name, role.name, visibleRoles)) {
+                showToast('Loop detected! A parent role cannot report to its own child role.', 'error');
+                return;
+            }
+            onReparent(draggedRole._id, role.name);
+        }
+    };
+
+    return (
+        <div className="role-tree-node-wrapper animate-fade-in">
+            <div 
+                draggable
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                className={`role-tree-node ${isDragOver ? 'drag-over' : ''} ${role.isBuiltIn ? 'builtin-node' : 'custom-node'} ${draggedRole?._id === role._id ? 'dragging' : ''}`}
+            >
+                <div className="node-drag-handle">
+                    <GripVerticalIcon size={14} />
+                </div>
+                <div className="node-content">
+                    <div className="node-header-row">
+                        <span className="node-name">{role.name}</span>
+                        <span className={`node-badge-sm ${role.isBuiltIn ? 'builtin' : 'custom'}`}>
+                            {role.isBuiltIn ? 'System' : 'Custom'}
+                        </span>
+                    </div>
+                    <p className="node-desc">{role.description || 'No description'}</p>
+                </div>
+                {role.reportsTo && (
+                    <button 
+                        className="node-detach-btn"
+                        title="Remove parent relation (Reports to None)"
+                        onClick={() => onReparent(role._id, null)}
+                    >
+                        ✕
+                    </button>
+                )}
+            </div>
+            
+            {children.length > 0 && (
+                <div className="node-children-container">
+                    <div className="hierarchy-connector-line"></div>
+                    {children.map(child => (
+                        <React.Fragment key={child._id}>
+                            <InsertDropZone
+                                parentRole={role}
+                                childRole={child}
+                                draggedRole={draggedRole}
+                                onInsert={onInsert}
+                                visibleRoles={visibleRoles}
+                            />
+                            <RoleTreeNode 
+                                role={child}
+                                visibleRoles={visibleRoles}
+                                draggedRole={draggedRole}
+                                setDraggedRole={setDraggedRole}
+                                onReparent={onReparent}
+                                onInsert={onInsert}
+                                showToast={showToast}
+                            />
+                        </React.Fragment>
+                    ))}
                 </div>
             )}
         </div>

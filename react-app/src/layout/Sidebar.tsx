@@ -69,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         },
         { label: 'Notifications', path: '/notifications', icon: <BellIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} /> },
         { label: 'Export/Import', path: '/import-export', icon: <DatabaseIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />, moduleKey: 'importExport' },
+        { label: 'Templates', path: '/templates', icon: <FileTextIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />, moduleKey: 'settings' },
         { label: 'Settings', path: '/settings', icon: <SettingsIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />, moduleKey: 'settings' },
     ];
 

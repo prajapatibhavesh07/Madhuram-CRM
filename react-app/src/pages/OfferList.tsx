@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { EditIcon, TrashIcon, GridIcon, ListIcon, SearchIcon, MoreVerticalIcon, GripVerticalIcon, ChevronDownIcon, PlusIcon } from '../icons';
 import Pagination from '../components/Pagination';
 import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
+import { formatAppDate } from '../utils/helpers';
 
 interface Offer {
     _id: string;
@@ -323,7 +324,7 @@ const OfferList = () => {
                                     </td>
                                     <td>
                                         <div className="date-text">
-                                            {offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString() : '-'}
+                                            {formatAppDate(offer.joiningDate)}
                                         </div>
                                     </td>
                                     <td>
@@ -400,7 +401,7 @@ const OfferList = () => {
                                         <HighlightText text={offer.status} highlight={searchQuery} />
                                     </div>
                                     <div className="metric-pill neutral">
-                                        Join: {offer.joiningDate ? new Date(offer.joiningDate).toLocaleDateString() : '-'}
+                                        Join: {formatAppDate(offer.joiningDate)}
                                     </div>
                                 </div>
 

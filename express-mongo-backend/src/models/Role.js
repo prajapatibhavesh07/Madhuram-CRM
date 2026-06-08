@@ -44,6 +44,10 @@ const roleSchema = new mongoose.Schema(
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
+        },
+        reportsTo: {
+            type: String,
+            default: null
         }
     },
     { timestamps: true }

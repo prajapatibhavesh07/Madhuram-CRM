@@ -8,6 +8,7 @@ export interface Role {
   name: string;
   description: string;
   isBuiltIn: boolean;
+  reportsTo?: string;
   permissions: Record<string, { view: boolean; create: boolean; edit: boolean; delete: boolean }>;
 }
 

@@ -129,6 +129,8 @@ const InterviewCalendar = () => {
     // Filters integration
     const filteredInterviews = useMemo(() => {
         return interviews.filter(int => {
+            if (!int.candidateId) return false; // Exclude general calendar/dummy events
+            
             const titleVal = int.title || int.candidateId?.name || '';
             const jobVal = int.jobId?.title || '';
             const query = searchQuery.toLowerCase();
@@ -388,7 +390,11 @@ const InterviewCalendar = () => {
     };
 
     const handleFormSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
+        if (!formData.candidateId) {
+            showToast('Please select a candidate', 'warning');
+            return;
+        }
         setFormLoading(true);
         try {
             const submissionData = {
@@ -396,10 +402,6 @@ const InterviewCalendar = () => {
                 date: new Date(formData.date).toISOString(),
                 endDate: formData.endDate ? new Date(formData.endDate).toISOString() : new Date(new Date(formData.date).getTime() + 60 * 60 * 1000).toISOString()
             };
-
-            if (!submissionData.candidateId) {
-                delete (submissionData as any).candidateId;
-            }
 
             if (isEditMode && formId) {
                 await api.updateInterview(formId, submissionData);
@@ -1230,14 +1232,15 @@ const InterviewCalendar = () => {
 
                     {/* Candidate Selector */}
                     <div className="input-group">
-                        <label className="input-label">Candidate (Optional)</label>
+                        <label className="input-label">Candidate *</label>
                         <select
                             className="input-field"
                             value={formData.candidateId}
                             onChange={(e) => setFormData({ ...formData, candidateId: e.target.value })}
                             disabled={isEditMode}
+                            required
                         >
-                            <option value="">None (General Calendar Event)</option>
+                            <option value="">Select Candidate</option>
                             {candidates.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
                         </select>
                     </div>

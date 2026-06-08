@@ -312,20 +312,20 @@ export const api = {
         return handleResponse(response, 'Failed to update job');
     },
 
-    emailCandidatesForJob: async (id: string, payload: { subject: string, message: string }) => {
+    emailCandidatesForJob: async (id: string, payload: { subject: string, message: string, candidateId?: string, candidateIds?: string[] }) => {
         const response = await fetch(`${BASE_URL}/api/jobs/${id}/email-candidates`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify(payload)
         });
-        return handleResponse(response, 'Failed to send bulk emails');
+        return handleResponse(response, 'Failed to send emails');
     },
 
-    shareCandidatesWithHR: async (id: string, hrEmail: string) => {
+    shareCandidatesWithHR: async (id: string, payload: { hrEmail: string, subject: string, message: string }) => {
         const response = await fetch(`${BASE_URL}/api/jobs/${id}/share-hr`, {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify({ hrEmail })
+            body: JSON.stringify(payload)
         });
         return handleResponse(response, 'Failed to share candidates with HR');
     },
@@ -345,6 +345,49 @@ export const api = {
             body: JSON.stringify({ ids }),
         });
         return handleResponse(response, 'Bulk delete failed');
+    },
+
+    // Templates
+    getTemplates: async () => {
+        const response = await fetch(`${BASE_URL}/api/templates`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to fetch templates');
+    },
+
+    getTemplateById: async (id: string) => {
+        const response = await fetch(`${BASE_URL}/api/templates/${id}`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to fetch template');
+    },
+
+    createTemplate: async (data: any) => {
+        const response = await fetch(`${BASE_URL}/api/templates`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+        return handleResponse(response, 'Failed to create template');
+    },
+
+    updateTemplate: async (id: string, data: any) => {
+        const response = await fetch(`${BASE_URL}/api/templates/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+        return handleResponse(response, 'Failed to update template');
+    },
+
+    deleteTemplate: async (id: string) => {
+        const response = await fetch(`${BASE_URL}/api/templates/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to delete template');
     },
 
     // Interviews

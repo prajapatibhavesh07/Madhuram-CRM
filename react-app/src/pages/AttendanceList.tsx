@@ -61,7 +61,10 @@ const AttendanceList = () => {
         try {
             const myHistory = await api.getMyAttendance();
             const todayStr = new Date().toDateString();
-            const today = myHistory.find((r: any) => new Date(r.date).toDateString() === todayStr);
+            const today = myHistory.find((r: any) => {
+                const recordDate = r.inTime ? new Date(r.inTime) : new Date(r.date);
+                return recordDate.toDateString() === todayStr;
+            });
             setTodayRecord(today);
 
             if (canViewAll && viewMode === 'all') {
