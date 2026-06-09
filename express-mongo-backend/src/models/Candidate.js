@@ -1,5 +1,15 @@
 const mongoose = require("mongoose");
 
+const makeEnumSetter = (allowedValues) => {
+    return function(val) {
+        if (typeof val === 'string') {
+            const matched = allowedValues.find(item => item.toLowerCase() === val.toLowerCase().trim());
+            return matched || val;
+        }
+        return val;
+    };
+};
+
 const ticketSchema = new mongoose.Schema({
     ticketNo: { type: String },
     companyName: { type: String },
@@ -21,7 +31,12 @@ const ticketSchema = new mongoose.Schema({
 const candidateSchema = new mongoose.Schema({
     // Basic Information
     name: { type: String, required: true },
-    gender: { type: String, enum: ["Male", "Female", "Other"], required: true },
+    gender: { 
+        type: String, 
+        enum: ["Male", "Female", "Other"], 
+        required: true,
+        set: makeEnumSetter(["Male", "Female", "Other"])
+    },
     dob: { type: Date, required: true },
     age: { type: Number, required: true },
     phone: { type: String, required: true, unique: true, sparse: true },
@@ -36,8 +51,16 @@ const candidateSchema = new mongoose.Schema({
     designation: String,
     currentCTC: Number,
     noticePeriod: String,
-    channel: { type: String, enum: ["Banca", "Agency", "Direct", "Referral", "Internal", "Job Portal", "Other"] },
-    sector: { type: String, enum: ["BFSI", "Insurance", "Banking", "IT", "Service", "EdTech", "Manufacturing", "Other"] },
+    channel: { 
+        type: String, 
+        enum: ["Banca", "Agency", "Direct", "Referral", "Internal", "Job Portal", "Other"],
+        set: makeEnumSetter(["Banca", "Agency", "Direct", "Referral", "Internal", "Job Portal", "Other"])
+    },
+    sector: { 
+        type: String, 
+        enum: ["BFSI", "Insurance", "Banking", "IT", "Service", "EdTech", "Manufacturing", "Other"],
+        set: makeEnumSetter(["BFSI", "Insurance", "Banking", "IT", "Service", "EdTech", "Manufacturing", "Other"])
+    },
     totalWorkExp: Number,
     totalSalesExp: Number,
     bfsiExp: Number,
@@ -47,7 +70,12 @@ const candidateSchema = new mongoose.Schema({
     pan: { type: String, required: true },
 
     // Assessment
-    assessment: { type: String, enum: ["Selected", "Hold", "Rejected", "In Progress", "Clear", "Not Clear", "Pending"], default: "In Progress" },
+    assessment: { 
+        type: String, 
+        enum: ["Selected", "Hold", "Rejected", "In Progress", "Clear", "Not Clear", "Pending"], 
+        default: "In Progress",
+        set: makeEnumSetter(["Selected", "Hold", "Rejected", "In Progress", "Clear", "Not Clear", "Pending"])
+    },
     remark: String,
 
     // Tickets (Repeatable)
@@ -98,8 +126,18 @@ const candidateSchema = new mongoose.Schema({
     },
 
     // Onboarding Fields
-    offerStatus: { type: String, enum: ['Accepted', 'Rejected', 'Pending'], default: 'Pending' },
-    isResigned: { type: String, enum: ['Yes', 'No'], default: 'No' },
+    offerStatus: { 
+        type: String, 
+        enum: ['Accepted', 'Rejected', 'Pending'], 
+        default: 'Pending',
+        set: makeEnumSetter(['Accepted', 'Rejected', 'Pending'])
+    },
+    isResigned: { 
+        type: String, 
+        enum: ['Yes', 'No'], 
+        default: 'No',
+        set: makeEnumSetter(['Yes', 'No'])
+    },
     resignationLetter: {
         fileName: String,
         fileUrl: String
@@ -113,7 +151,8 @@ const candidateSchema = new mongoose.Schema({
     recruitmentStatus: {
         type: String,
         enum: ['Applied', 'Shortlisted', 'Interviewed', 'Offered', 'Rejected', 'Joined'],
-        default: 'Applied'
+        default: 'Applied',
+        set: makeEnumSetter(['Applied', 'Shortlisted', 'Interviewed', 'Offered', 'Rejected', 'Joined'])
     },
     timeline: [{
         status: String,

@@ -4,7 +4,7 @@ $TargetRoot = "D:\production\Madhuram"
 $FrontendTarget = $TargetRoot
 $BackendTarget = "$TargetRoot\server"
 
-$SourceRoot = "d:\crm"
+$SourceRoot = "D:\bhavesh\Madhuram-CRM"
 $FrontendSource = "$SourceRoot\react-app"
 $BackendSource = "$SourceRoot\express-mongo-backend"
 
