@@ -387,6 +387,10 @@
     color: var(--text-main);
     text-decoration: none;
     transition: color 0.2s;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
 
     &:hover {
         color: var(--primary);

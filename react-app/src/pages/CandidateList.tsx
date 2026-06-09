@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { api, BASE_URL } from '../services/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
-import { EditIcon, EyeIcon, FileTextIcon, GridIcon, ListIcon, TrashIcon, SettingsIcon, ChevronDownIcon, SearchIcon, UsersIcon, MailIcon, PlusIcon, CheckCircleIcon, GripVerticalIcon, PinIcon, MoreVerticalIcon, CalendarIcon, RefreshIcon, PhoneIcon, SparklesIcon, CheckIcon, ChevronRightIcon, ArrowRightIcon, WhatsappIcon } from '../icons';
+import { EditIcon, EyeIcon, FileTextIcon, GridIcon, ListIcon, TrashIcon, SettingsIcon, ChevronDownIcon, SearchIcon, UsersIcon, MailIcon, PlusIcon, CheckCircleIcon, GripVerticalIcon, PinIcon, MoreVerticalIcon, CalendarIcon, RefreshIcon, PhoneIcon, SparklesIcon, CheckIcon, ChevronRightIcon, ArrowRightIcon, WhatsappIcon, MessageIcon, VideoIcon } from '../icons';
 import InterviewList from './InterviewList';
 import DocumentPreviewModal from '../components/DocumentPreviewModal';
 import Modal from '../components/Modal';
@@ -214,6 +214,51 @@ const CandidateList = () => {
     const [hoveredCandidate, setHoveredCandidate] = useState<Candidate | null>(null);
     const [hoverPosition, setHoverPosition] = useState<{ top: number, left: number } | null>(null);
     const [hoverPlacement] = useState<'up' | 'down'>('down');
+
+    const hoverTimeoutRef = useRef<any>(null);
+
+    const handleNameMouseEnter = (e: React.MouseEvent<HTMLElement>, candidate: Candidate) => {
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+        }
+        
+        const rect = e.currentTarget.getBoundingClientRect();
+        const scrollY = window.scrollY || window.pageYOffset;
+        const scrollX = window.scrollX || window.pageXOffset;
+        
+        let left = rect.left + scrollX;
+        if (rect.left + 320 > window.innerWidth) {
+            left = window.innerWidth - 340 + scrollX;
+            if (left < 0) left = 10;
+        }
+        
+        let top = rect.bottom + scrollY + 4;
+        
+        setHoverPosition({ top, left });
+        setHoveredCandidate(candidate);
+    };
+
+    const handleNameMouseLeave = () => {
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+        }
+        hoverTimeoutRef.current = setTimeout(() => {
+            setHoveredCandidate(null);
+            setHoverPosition(null);
+        }, 300);
+    };
+
+    const handleCardMouseEnter = () => {
+        if (hoverTimeoutRef.current) {
+            clearTimeout(hoverTimeoutRef.current);
+            hoverTimeoutRef.current = null;
+        }
+    };
+
+    const handleCardMouseLeave = () => {
+        handleNameMouseLeave();
+    };
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -788,8 +833,13 @@ const CandidateList = () => {
                     <div className="candidate-avatar-mini">
                         {photoUrl ? <img src={photoUrl} className="candidate-avatar-img" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                        <span className="candidate-name-link" onClick={() => handleOpenProfile(candidate._id)}>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                        <span 
+                            className="candidate-name-link" 
+                            onClick={() => handleOpenProfile(candidate._id)}
+                            onMouseEnter={(e) => handleNameMouseEnter(e, candidate)}
+                            onMouseLeave={handleNameMouseLeave}
+                        >
                             {candidate.name}
                         </span>
                         <span style={{ fontSize: '0.7rem', color: 'var(--table-text-muted)' }}>
@@ -2428,62 +2478,127 @@ const CandidateList = () => {
             )}
 
             {/* Hover Card Portal */}
-            {hoveredCandidate && hoverPosition && createPortal(
-                <div
-                    className={`candidate-hover-card portal ${hoverPlacement}`}
-                    style={{
-                        top: hoverPosition.top,
-                        left: hoverPosition.left,
-                        opacity: 1,
-                        visibility: 'visible',
-                        transform: 'none'
-                    }}
-                >
-                    <div className="hover-card-header">
-                        <div className="hover-card-avatar">
-                            {hoveredCandidate.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="hover-card-title">{hoveredCandidate.name}</div>
-                    </div>
-                    <div className="hover-card-grid">
-                        <div className="hover-card-item">
-                            <div className="hover-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg></div>
-                            <div className="hover-card-item">Status</div>
-                            <div className="hover-card-value">
-                                <span className="hover-card-status" style={{ background: getStatusColor(hoveredCandidate.recruitmentStatus) + '22', color: getStatusColor(hoveredCandidate.recruitmentStatus) }}>
-                                    {hoveredCandidate.recruitmentStatus}
-                                </span>
+            {hoveredCandidate && hoverPosition && (() => {
+                const photoUrl = hoveredCandidate.photograph?.fileUrl 
+                    ? (hoveredCandidate.photograph.fileUrl.startsWith('http') ? hoveredCandidate.photograph.fileUrl : `${BASE_URL}${hoveredCandidate.photograph.fileUrl}`) 
+                    : null;
+                const initials = hoveredCandidate.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                
+                return createPortal(
+                    <div
+                        className={`candidate-hover-card portal ${hoverPlacement}`}
+                        style={{
+                            top: hoverPosition.top,
+                            left: hoverPosition.left,
+                            opacity: 1,
+                            visibility: 'visible',
+                            transform: 'none'
+                        }}
+                        onMouseEnter={handleCardMouseEnter}
+                        onMouseLeave={handleCardMouseLeave}
+                    >
+                        <div className="hover-card-main-row">
+                            <div className="hover-card-avatar-large">
+                                {photoUrl ? (
+                                    <img 
+                                        src={photoUrl} 
+                                        alt="" 
+                                    />
+                                ) : (
+                                    initials
+                                )}
+                            </div>
+                            <div className="hover-card-details">
+                                <div className="hover-card-name-row">
+                                    <div className="hover-card-name" title={hoveredCandidate.name}>
+                                        {hoveredCandidate.name}
+                                    </div>
+                                    <button 
+                                        className="hover-card-add-btn"
+                                        title="Edit Candidate"
+                                        onClick={() => {
+                                            setSelectedCandidateId(hoveredCandidate._id);
+                                            setIsFormDrawerOpen(true);
+                                            setHoveredCandidate(null);
+                                            setHoverPosition(null);
+                                        }}
+                                    >
+                                        <PlusIcon size={16} />
+                                    </button>
+                                </div>
+                                <div className="hover-card-email" title={hoveredCandidate.email || ''}>
+                                    {hoveredCandidate.email || 'No email provided'}
+                                </div>
                             </div>
                         </div>
-                        <div className="hover-card-item">
-                            <div className="hover-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></div>
-                            <div className="hover-card-item">Company</div>
-                            <div className="hover-card-value">{hoveredCandidate.currentCompany || '-'}</div>
+                        
+                        <div className="hover-card-actions-row">
+                            {hoveredCandidate.email ? (
+                                <button 
+                                    className="hover-card-mail-btn"
+                                    onClick={() => {
+                                        setSelectedIds([hoveredCandidate._id]);
+                                        setEmailTarget('selected');
+                                        setIsEmailModalOpen(true);
+                                        setHoveredCandidate(null);
+                                        setHoverPosition(null);
+                                    }}
+                                >
+                                    <MailIcon size={14} />
+                                    <span>Send Mail</span>
+                                </button>
+                            ) : (
+                                <div style={{ width: '1px' }}></div>
+                            )}
+                            <div className="hover-card-icon-buttons">
+                                <button 
+                                    className="hover-card-circle-btn" 
+                                    title="Chat on WhatsApp"
+                                    onClick={() => {
+                                        const phone = hoveredCandidate.whatsapp || hoveredCandidate.phone;
+                                        if (phone) {
+                                            window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
+                                        } else {
+                                            showToast('No phone number available for WhatsApp', 'error');
+                                        }
+                                        setHoveredCandidate(null);
+                                        setHoverPosition(null);
+                                    }}
+                                >
+                                    <MessageIcon size={16} />
+                                </button>
+                                <button 
+                                    className="hover-card-circle-btn" 
+                                    title="Schedule Video Interview"
+                                    onClick={() => {
+                                        setSelectedProfileId(hoveredCandidate._id);
+                                        setSelectedActivityModal('Interview');
+                                        setIsProfileDrawerOpen(true);
+                                        setHoveredCandidate(null);
+                                        setHoverPosition(null);
+                                    }}
+                                >
+                                    <VideoIcon size={16} />
+                                </button>
+                                <button 
+                                    className="hover-card-circle-btn" 
+                                    title="Schedule Meeting/Interview"
+                                    onClick={() => {
+                                        setSelectedProfileId(hoveredCandidate._id);
+                                        setSelectedActivityModal('Interview');
+                                        setIsProfileDrawerOpen(true);
+                                        setHoveredCandidate(null);
+                                        setHoverPosition(null);
+                                    }}
+                                >
+                                    <CalendarIcon size={16} />
+                                </button>
+                            </div>
                         </div>
-                        <div className="hover-card-item">
-                            <div className="hover-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 7h-9"></path><path d="M14 17H5"></path><circle cx="17" cy="17" r="3"></circle><circle cx="7" cy="7" r="3"></circle></svg></div>
-                            <div className="hover-card-item">Position</div>
-                            <div className="hover-card-value">{hoveredCandidate.designation || '-'}</div>
-                        </div>
-                        <div className="hover-card-item">
-                            <div className="hover-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg></div>
-                            <div className="hover-card-item">City</div>
-                            <div className="hover-card-value">{hoveredCandidate.location || '-'}</div>
-                        </div>
-                        <div className="hover-card-item">
-                            <div className="hover-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></div>
-                            <div className="hover-card-item">Email</div>
-                            <div className="hover-card-value">{hoveredCandidate.email || '-'}</div>
-                        </div>
-                        <div className="hover-card-item">
-                            <div className="hover-card-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg></div>
-                            <div className="hover-card-item">Phone</div>
-                            <div className="hover-card-value">{hoveredCandidate.phone || '-'}</div>
-                        </div>
-                    </div>
-                </div>,
-                document.body
-            )}
+                    </div>,
+                    document.body
+                );
+            })()}
              {/* Column Customization Drawer */}
             <Drawer
                 isOpen={isColumnPanelOpen}

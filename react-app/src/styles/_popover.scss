@@ -22,41 +22,161 @@
 }
 
 .candidate-hover-card {
-  position: fixed;
+  position: absolute;
   z-index: 9999 !important;
-  width: 360px;
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  padding: 1rem;
-  pointer-events: none;
-  transition: none;
+  width: 320px;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.1);
+  padding: 1.25rem;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1rem;
   white-space: normal;
   text-align: left;
+  font-family: inherit;
+  box-sizing: border-box;
+  animation: fadeIn 0.2s ease-out;
 
-  &.up {
-    transform: translateY(-100%) translateY(-10px);
+  .hover-card-main-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
   }
 
-  &::before {
-    content: '';
-    position: absolute;
-    left: -6px;
-    width: 12px;
-    height: 12px;
+  .hover-card-avatar-large {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: #3b82f6;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(59, 130, 246, 0.25);
+    flex-shrink: 0;
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  .hover-card-details {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .hover-card-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .hover-card-name {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: #0f172a;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .hover-card-add-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: #475569;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+
+    &:hover {
+      background: #f1f5f9;
+      color: #0f172a;
+    }
+  }
+
+  .hover-card-email {
+    font-size: 0.8125rem;
+    color: #475569;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 2px;
+  }
+
+  .hover-card-actions-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.875rem;
+    gap: 0.75rem;
+  }
+
+  .hover-card-mail-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #eff6ff;
+    color: #2563eb;
+    border-radius: 24px;
+    padding: 0.5rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    border: 1px solid transparent;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #dbeafe;
+      transform: translateY(-1px);
+    }
+
+    span {
+      vertical-align: middle;
+    }
+  }
+
+  .hover-card-icon-buttons {
+    display: flex;
+    gap: 6px;
+  }
+
+  .hover-card-circle-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
     background: #ffffff;
-    transform: rotate(45deg);
-    border-left: 1px solid rgba(0, 0, 0, 0.05);
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-  }
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
 
-  &.down::before { top: 10px; }
-  &.up::before { bottom: 10px; }
+    &:hover {
+      border-color: #2563eb;
+      background: #eff6ff;
+      color: #2563eb;
+      transform: scale(1.05);
+    }
+  }
 }
 
 /* Tooltip Styles */
