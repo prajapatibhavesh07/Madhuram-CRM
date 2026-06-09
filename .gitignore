@@ -51,7 +51,22 @@ express-mongo-backend/uploads/logos/*
 !express-mongo-backend/uploads/recordings/.gitkeep
 !express-mongo-backend/uploads/logos/.gitkeep
 
-# Temporary/scratch files
+# Temporary/scratch scripts
 express-mongo-backend/scratch_*.js
 react-app/src/pages/check_*.js
 react-app/src/pages/check_*.cjs
+check_*.py
+check_*.js
+check_*.ps1
+
+# AI agent artifacts & configuration
+.agents/
+.gemini/
+*.webp
+*.mp4
+*.png
+
+# Local Database Backups/Exports
+database/
+db_schema.json
+
