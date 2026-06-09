@@ -32,7 +32,7 @@ const LeaveList = () => {
     const { showToast } = useToast();
     const [loading, setLoading] = useState(true);
     const [leaves, setLeaves] = useState<any[]>([]);
-    const [balances, setBalances] = useState<any>(null);
+    const [_balances, setBalances] = useState<any>(null);
     const [viewMode, setViewMode] = useState<'my' | 'all'>('my');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');

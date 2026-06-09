@@ -1,11 +1,11 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { api, BASE_URL } from '../services/api';
 import {
     UserIcon, ClockIcon,
     AlertCircleIcon, BellIcon, ListIcon, SparklesIcon,
-    CheckIcon, UsersIcon, TrashIcon, PlusIcon, CopyIcon, ChevronDownIcon, FileTextIcon
+    CheckIcon, UsersIcon, TrashIcon, CopyIcon, ChevronDownIcon, FileTextIcon
 } from '../icons';
 import { useToast } from '../context/ToastContext';
 import DashboardManager from './DashboardManager';
@@ -69,7 +69,6 @@ const EmployeeCard = ({ employee }: { employee: any }) => {
 
 const Dashboard = () => {
     const { user } = useAuth();
-    const navigate = useNavigate();
     const { showToast } = useToast();
 
     // Ticket Modal States
@@ -216,7 +215,7 @@ const Dashboard = () => {
 
     const isFirstMount = React.useRef(true);
 
-    const isManager = user?.role === 'Manager' || user?.role === 'Team Lead' || user?.role === 'Operation Manager';
+    const isManager = user?.role === 'Manager' || user?.role === 'Team Lead' || (user?.role as string) === 'Operation Manager';
     const isCandidate = user?.role === 'Normal User';
 
     const fetchData = React.useCallback(async () => {

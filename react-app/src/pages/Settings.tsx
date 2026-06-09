@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { SaveIcon, SettingsIcon, MailIcon, SlidersIcon } from '../icons';
 import { api } from '../services/api';
 import { useToast } from '../context/ToastContext';

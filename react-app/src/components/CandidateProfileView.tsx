@@ -18,7 +18,6 @@ import { industryTypes } from '../constants/IndustryConstants';
 import CandidateForm from '../pages/CandidateForm';
 import DocumentPreviewModal from './DocumentPreviewModal';
 import { BASE_URL } from '../services/api';
-import { formatAppDate } from '../utils/helpers';
 import AppDateInput from './AppDateInput';
 
 const ArrowLeftIcon = ({ size, style }: { size: number, style?: React.CSSProperties }) => (
@@ -290,25 +289,6 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({ value, onChange, placeh
     );
 };
 
-const CustomDatePicker: React.FC<{
-    value: string;
-    onChange: (val: string) => void;
-}> = ({ value, onChange }) => {
-    return (
-        <div className="custom-date-picker">
-            <input
-                type="date"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className="date-input-hidden"
-            />
-            <div className="date-picker-trigger">
-                <span>{formatAppDate(value) || 'Select Date'}</span>
-                <CalendarIcon size={16} color="#94a3b8" />
-            </div>
-        </div>
-    );
-};
 
 const IntervalTimePicker: React.FC<{
     value: string;
