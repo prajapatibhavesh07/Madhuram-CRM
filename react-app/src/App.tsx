@@ -39,6 +39,8 @@ import CompanyDetail from './pages/CompanyDetail';
 function App() {
   useEffect(() => {
     const initSettings = async () => {
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) return;
       try {
         const data = await api.getSettings();
         if (data && data.general && data.general.dateFormat) {

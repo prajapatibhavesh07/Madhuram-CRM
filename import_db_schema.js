@@ -21,7 +21,8 @@ const path = require('path');
 // ── Config ───────────────────────────────────────────────────────────────────
 const args      = process.argv.slice(2);
 const schemaDir = args[0] || __dirname;
-const schemaFile = path.join(schemaDir, 'db_schema.json');
+const masterSchemaFile = path.join(schemaDir, '_master_schema.json');
+const legacySchemaFile = path.join(schemaDir, 'db_schema.json');
 
 // MongoUri: from arg, then from local .env, then fallback
 let mongoUri = 'mongodb://127.0.0.1:27017/crm_db';
@@ -41,13 +42,24 @@ if (args[1]) {
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function importSchema() {
-    if (!fs.existsSync(schemaFile)) {
-        console.error(`Schema file not found: ${schemaFile}`);
+    let schema = null;
+    let collectionsList = [];
+    let isSplitSchema = false;
+
+    if (fs.existsSync(masterSchemaFile)) {
+        schema = JSON.parse(fs.readFileSync(masterSchemaFile, 'utf8'));
+        isSplitSchema = true;
+        collectionsList = schema.collections || [];
+        console.log(`\nImporting split schema for database : ${schema.dbName}`);
+    } else if (fs.existsSync(legacySchemaFile)) {
+        schema = JSON.parse(fs.readFileSync(legacySchemaFile, 'utf8'));
+        collectionsList = schema.collections || [];
+        console.log(`\nImporting combined schema for database : ${schema.dbName}`);
+    } else {
+        console.error(`No schema files found in ${schemaDir}. Checked _master_schema.json and db_schema.json.`);
         process.exit(1);
     }
 
-    const schema = JSON.parse(fs.readFileSync(schemaFile, 'utf8'));
-    console.log(`\nImporting schema for database : ${schema.dbName}`);
     console.log(`Exported at                   : ${schema.exportedAt}`);
     console.log(`Connecting to                 : ${mongoUri.replace(/:\/\/[^@]*@/, '://***@')}\n`);
 
@@ -59,7 +71,19 @@ async function importSchema() {
 
         let created = 0, skipped = 0, idxCreated = 0, idxWarned = 0;
 
-        for (const col of schema.collections) {
+        for (const colEntry of collectionsList) {
+            let col = null;
+            if (isSplitSchema) {
+                const colFile = path.join(schemaDir, `${colEntry}.json`);
+                if (!fs.existsSync(colFile)) {
+                    console.warn(`  ⚠ Collection schema file missing: ${colFile}`);
+                    continue;
+                }
+                col = JSON.parse(fs.readFileSync(colFile, 'utf8'));
+            } else {
+                col = colEntry;
+            }
+
             // Create collection only if it doesn't already exist
             const existing = await db.listCollections({ name: col.name }).toArray();
             if (existing.length === 0) {

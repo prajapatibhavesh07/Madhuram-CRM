@@ -29,7 +29,9 @@ const handleResponse = async (response: Response, defaultError: string) => {
                 const data = JSON.parse(text);
                 if (data.message && (data.message.toLowerCase().includes("session") || data.message.toLowerCase().includes("login"))) {
                     localStorage.removeItem('user');
-                    window.location.href = '/login';
+                    if (window.location.pathname !== '/login') {
+                        window.location.href = '/login';
+                    }
                 }
             } catch (e) { }
         }

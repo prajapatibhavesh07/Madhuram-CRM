@@ -49,12 +49,12 @@ async function backup() {
         // Ensure output directory exists
         fs.mkdirSync(outputDir, { recursive: true });
 
-        // List all collections (include system collections? no – skip them)
+        // List all collections (skip system collections)
         const cols = await db.listCollections().toArray();
-        const schema = {
+        const masterSchema = {
             dbName,
             exportedAt: new Date().toISOString(),
-            collections: []
+            collections: cols.map(c => c.name)
         };
 
         for (const col of cols) {
@@ -62,15 +62,18 @@ async function backup() {
             const options = col.options || {};
             const indexes = await db.collection(name).indexes();
 
-            schema.collections.push({ name, options, indexes });
-            console.log(`  ✔ ${name.padEnd(30)} ${indexes.length} index(es)`);
+            const colSchema = { name, options, indexes };
+            const colFile = path.join(outputDir, `${name}.json`);
+            fs.writeFileSync(colFile, JSON.stringify(colSchema, null, 2), 'utf8');
+
+            console.log(`  ✔ ${name.padEnd(30)} ${indexes.length} index(es) -> ${name}.json`);
         }
 
-        const outFile = path.join(outputDir, 'db_schema.json');
-        fs.writeFileSync(outFile, JSON.stringify(schema, null, 2), 'utf8');
+        const masterFile = path.join(outputDir, '_master_schema.json');
+        fs.writeFileSync(masterFile, JSON.stringify(masterSchema, null, 2), 'utf8');
 
-        console.log(`\nSchema backup saved to: ${outFile}`);
-        console.log(`Collections exported  : ${schema.collections.length}`);
+        console.log(`\nMaster schema saved to : ${masterFile}`);
+        console.log(`Collections exported  : ${masterSchema.collections.length}`);
         console.log('NOTE: No document data was exported (schema-only).\n');
     } finally {
         await client.close();

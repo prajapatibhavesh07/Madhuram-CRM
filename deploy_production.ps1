@@ -1,16 +1,19 @@
 # CRM Production Pipeline Deployment Script
 
+$ApiIp = "192.168.3.165"
+
 #$TargetRoot = "C:\inetpub"
 #$FrontendTarget = "$TargetRoot\wwwroot\crm"
 #$BackendTarget = "$TargetRoot\backend"
 #$DatabaseTarget = "$TargetRoot\database"
 
 $TargetRoot = "D:\production"
-$FrontendTarget = "$TargetRoot\wwwroot\crm"
-$BackendTarget = "$TargetRoot\backend"
+$FrontendTarget = "$TargetRoot"
+$BackendTarget = "$TargetRoot\server"
 $DatabaseTarget = "$TargetRoot\database"
 
-$SourceRoot = "d:\crm"
+#$SourceRoot = if ($PSScriptRoot) { $PSScriptRoot } else { "D:\bhavesh\Madhuram-CRM" }
+$SourceRoot = "D:\bhavesh\Madhuram-CRM"
 $FrontendSource = "$SourceRoot\react-app"
 $BackendSource = "$SourceRoot\express-mongo-backend"
 
@@ -19,6 +22,10 @@ Write-Host "--- Starting Production Pipeline ---" -ForegroundColor Cyan
 # 1. Build Frontend
 Write-Host "`n[1/5] Building Frontend..." -ForegroundColor Yellow
 Set-Location $FrontendSource
+
+Write-Host "Setting VITE_API_BASE_URL to http://$ApiIp:5000 in .env.production..." -ForegroundColor Gray
+"VITE_API_BASE_URL=http://$ApiIp:5000" | Out-File -FilePath "$FrontendSource\.env.production" -Encoding utf8 -Force
+
 npm install
 npm run build
 if ($LASTEXITCODE -ne 0) { Write-Error "Frontend build failed!"; exit }
@@ -43,10 +50,15 @@ Copy-Item -Path "$FrontendSource\dist\*" -Destination $FrontendTarget -Recurse -
 Write-Host "`n[4/5] Deploying Backend to $BackendTarget..." -ForegroundColor Yellow
 # Copy all files except node_modules, .git, and .env
 Get-ChildItem -Path $BackendSource -Exclude "node_modules", ".git", ".env" | Copy-Item -Destination $BackendTarget -Recurse -Force
-# Ensure .env.production is copied as .env if it exists
+# Copy environment file: prefer .env.production, fallback to .env
 if (Test-Path "$BackendSource\.env.production") {
     Copy-Item -Path "$BackendSource\.env.production" -Destination "$BackendTarget\.env" -Force
+    Write-Host "Copied .env.production as .env" -ForegroundColor Gray
+} elseif (Test-Path "$BackendSource\.env") {
+    Copy-Item -Path "$BackendSource\.env" -Destination "$BackendTarget\.env" -Force
+    Write-Host "Copied local .env as fallback" -ForegroundColor Yellow
 }
+
 
 # 5. Database Structure Backup
 Write-Host "`n[5/5] Performing Database Structure Backup..." -ForegroundColor Yellow

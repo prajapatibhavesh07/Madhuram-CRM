@@ -18,9 +18,9 @@ if %errorLevel% neq 0 (
 echo [OK] Administrator privileges confirmed.
 
 :: 2. Configuration Check
-set "API_IP=192.168.1.50"
-set "FRONTEND_DIR=d:\crm\react-app"
-set "BACKEND_DIR=d:\crm\express-mongo-backend"
+set "API_IP=192.168.3.165"
+set "FRONTEND_DIR=D:\bhavesh\Madhuram-CRM\react-app"
+set "BACKEND_DIR=D:\bhavesh\Madhuram-CRM\express-mongo-backend"
 set "STAGING_DIR=D:\production\Madhuram"
 set "IIS_DIR=C:\inetpub\wwwroot\Madhuram"
 
