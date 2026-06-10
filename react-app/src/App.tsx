@@ -42,9 +42,12 @@ function App() {
       const storedUser = localStorage.getItem('user');
       if (!storedUser) return;
       try {
-        const data = await api.getSettings();
-        if (data && data.general && data.general.dateFormat) {
-          localStorage.setItem('dateFormat', data.general.dateFormat);
+        const user = JSON.parse(storedUser);
+        if (user && (user.role === 'Admin' || user.role === 'Super Admin')) {
+          const data = await api.getSettings();
+          if (data && data.general && data.general.dateFormat) {
+            localStorage.setItem('dateFormat', data.general.dateFormat);
+          }
         }
       } catch (e) {
         console.error('Error fetching settings on startup:', e);
