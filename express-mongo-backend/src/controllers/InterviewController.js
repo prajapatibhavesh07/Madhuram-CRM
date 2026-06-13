@@ -47,6 +47,24 @@ exports.scheduleInterview = async (req, res) => {
                     await twilioService.sendWhatsApp(candidate.whatsapp || candidate.phone, 
                         `Hi ${candidate.name}, your interview has been scheduled for ${dateStr}. Please be prepared!`);
                 }
+
+                // 3. Notify Team Lead, Manager, Operation Manager
+                const User = require('../models/User');
+                const usersToNotify = await User.find({
+                    role: { $in: ['Team Lead', 'Manager', 'Operation Manager'] },
+                    status: 'Active',
+                    _id: { $ne: req.user?._id }
+                });
+
+                for (const user of usersToNotify) {
+                    await notificationService.sendNotification(user._id, {
+                        title: 'New Candidate Interview Scheduled',
+                        message: `Interview scheduled for candidate ${candidate.name} at ${interview.companyName || 'Company'} by ${req.user?.name || 'Recruiter'}.`,
+                        type: 'interview',
+                        path: `/candidates?id=${candidate._id}`,
+                        channels: ['in-app']
+                    });
+                }
             }
         }
 
@@ -153,7 +171,8 @@ exports.deleteInterview = async (req, res) => {
         if (!interview) return res.status(404).json({ message: 'Interview not found' });
 
         // Role-base check
-        if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
+        const userRole = (req.user?.role || '').toLowerCase().trim();
+        if (userRole !== 'admin' && userRole !== 'super admin' && userRole !== 'manager' && userRole !== 'operation manager' && userRole !== 'operations manager') {
             const subordinateIds = await getSubordinateIds(req.user._id);
             const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
 

@@ -458,7 +458,8 @@ exports.getCandidateById = async (req, res) => {
         if (!candidate) return res.status(404).json({ message: "Candidate not found" });
 
         // Role-base check - non-admins can view candidates they or their subordinates created OR assigned to them via tasks or operations
-        if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
+        const userRole = (req.user?.role || '').toLowerCase().trim();
+        if (userRole !== 'admin' && userRole !== 'super admin' && userRole !== 'manager' && userRole !== 'operation manager' && userRole !== 'operations manager') {
             const subordinateIds = await getSubordinateIds(req.user._id);
             const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
 
@@ -492,7 +493,8 @@ exports.updateCandidate = async (req, res) => {
         if (!currentCandidate) return res.status(404).json({ message: "Candidate not found" });
 
         // Role-base check - non-admins can update candidates they or their subordinates created OR assigned to them via tasks or operations
-        if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
+        const userRoleUpdate = (req.user?.role || '').toLowerCase().trim();
+        if (userRoleUpdate !== 'admin' && userRoleUpdate !== 'super admin' && userRoleUpdate !== 'manager' && userRoleUpdate !== 'operation manager' && userRoleUpdate !== 'operations manager') {
             const subordinateIds = await getSubordinateIds(req.user._id);
             const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
 
@@ -522,6 +524,31 @@ exports.updateCandidate = async (req, res) => {
         // Filter out completely empty tickets
         if (Array.isArray(candidateData.tickets)) {
             candidateData.tickets = candidateData.tickets.filter(t => t.ticketNo?.trim() || t.companyName?.trim());
+        }
+
+        // Validate ticket deletion permissions
+        if (candidateData.tickets && Array.isArray(candidateData.tickets)) {
+            const oldTickets = currentCandidate.tickets || [];
+            // Check if any old ticket is missing in the new tickets list based on subdocument ID or ticket attributes
+            const hasDeletedTickets = oldTickets.some(oldT => {
+                return !candidateData.tickets.some(newT => {
+                    if (newT._id && oldT._id && newT._id.toString() === oldT._id.toString()) {
+                        return true;
+                    }
+                    const oldNo = (oldT.ticketNo || '').trim();
+                    const newNo = (newT.ticketNo || '').trim();
+                    const oldComp = (oldT.companyName || '').toLowerCase().trim();
+                    const newComp = (newT.companyName || '').toLowerCase().trim();
+                    return oldNo === newNo && oldComp === newComp;
+                });
+            });
+
+            if (hasDeletedTickets) {
+                const userRoleTicket = (req.user?.role || '').toLowerCase().trim();
+                if (!['super admin', 'admin', 'manager', 'operation manager', 'operations manager'].includes(userRoleTicket)) {
+                    return res.status(403).json({ error: "Access denied: Only Managers, Operation Managers, and Admins can delete tickets." });
+                }
+            }
         }
 
         // Handle empty jobId which comes as string "null" or "" from FormData

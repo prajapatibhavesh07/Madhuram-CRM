@@ -684,7 +684,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                     id: i._id,
                     type: 'Interview',
                     title: i.stage || 'Interview',
-                    status: 'Scheduled',
+                    status: i.status || 'Pending',
                     content: `At ${i.companyName} via ${i.mode}`,
                     date: i.date,
                     time: i.time,
@@ -978,10 +978,49 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const handleDeleteTicket = async (index: number) => {
         if (!candidate || !candidate.tickets) return;
+        const ticketToDelete = candidate.tickets[index];
         const updatedTickets = candidate.tickets.filter((_: any, i: number) => i !== index);
-        setCandidate({ ...candidate, tickets: updatedTickets });
+        const originalTickets = candidate.tickets;
+
+        // Remove the company from companyMulti if it's no longer associated with any ticket
+        const companyToRemove = ticketToDelete?.companyName?.toLowerCase().trim();
+        const updatedCompanyMulti = (candidate.companyMulti || []).filter((c: string) => {
+            const normC = c.toLowerCase().trim();
+            if (normC !== companyToRemove) return true;
+            // Only keep it if there's another ticket for this company
+            return updatedTickets.some((t: any) => t.companyName?.toLowerCase().trim() === normC);
+        });
+
+        setCandidate({ ...candidate, tickets: updatedTickets, companyMulti: updatedCompanyMulti });
+        setTicketForm(prev => ({ ...prev, companyMulti: updatedCompanyMulti }));
         setSelectedTicketIndices(prev => prev.filter(i => i !== index));
-        await api.updateCandidate(candidateId, { tickets: updatedTickets });
+
+        try {
+            await api.updateCandidate(candidateId, { tickets: updatedTickets, companyMulti: updatedCompanyMulti });
+            showToast('Ticket deleted successfully', 'success');
+            
+            // Automatically delete corresponding scheduled interviews if they exist
+            if (ticketToDelete && ticketToDelete.companyName) {
+                const targetCompanyName = ticketToDelete.companyName.toLowerCase().trim();
+                try {
+                    const interviews = await api.getInterviews({ candidateId });
+                    const matchingInterviews = interviews.filter((i: any) => 
+                        i.companyName?.toLowerCase().trim() === targetCompanyName
+                    );
+                    for (const interview of matchingInterviews) {
+                        await api.deleteInterview(interview._id || interview.id);
+                    }
+                } catch (err) {
+                    console.error("Failed to delete corresponding interviews:", err);
+                }
+                fetchActivityFeed();
+            }
+        } catch (error: any) {
+            console.error('Failed to delete ticket:', error);
+            setCandidate({ ...candidate, tickets: originalTickets, companyMulti: candidate.companyMulti });
+            setTicketForm(prev => ({ ...prev, companyMulti: candidate.companyMulti || [] }));
+            showToast(error.message || 'Failed to delete ticket', 'error');
+        }
     };
 
     const handleToggleSelectTicket = (index: number) => {
@@ -1001,10 +1040,45 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const handleBulkDeleteTickets = async () => {
         if (!candidate || !candidate.tickets || selectedTicketIndices.length === 0) return;
+        const ticketsToDelete = candidate.tickets.filter((_: any, i: number) => selectedTicketIndices.includes(i));
         const updatedTickets = candidate.tickets.filter((_: any, i: number) => !selectedTicketIndices.includes(i));
-        setCandidate({ ...candidate, tickets: updatedTickets });
+        const originalTickets = candidate.tickets;
+
+        // Remove the companies of deleted tickets from companyMulti if no other tickets exist for them
+        const companiesToRemove = ticketsToDelete.map((t: any) => t.companyName?.toLowerCase().trim()).filter(Boolean);
+        const updatedCompanyMulti = (candidate.companyMulti || []).filter((c: string) => {
+            const normC = c.toLowerCase().trim();
+            if (!companiesToRemove.includes(normC)) return true;
+            return updatedTickets.some((t: any) => t.companyName?.toLowerCase().trim() === normC);
+        });
+
+        setCandidate({ ...candidate, tickets: updatedTickets, companyMulti: updatedCompanyMulti });
+        setTicketForm(prev => ({ ...prev, companyMulti: updatedCompanyMulti }));
         setSelectedTicketIndices([]);
-        await api.updateCandidate(candidateId, { tickets: updatedTickets });
+
+        try {
+            await api.updateCandidate(candidateId, { tickets: updatedTickets, companyMulti: updatedCompanyMulti });
+            showToast('Selected tickets deleted successfully', 'success');
+
+            // Automatically delete corresponding interviews for each deleted ticket
+            try {
+                const interviews = await api.getInterviews({ candidateId });
+                const matchingInterviews = interviews.filter((i: any) => 
+                    i.companyName && companiesToRemove.includes(i.companyName.toLowerCase().trim())
+                );
+                for (const interview of matchingInterviews) {
+                    await api.deleteInterview(interview._id || interview.id);
+                }
+            } catch (err) {
+                console.error("Failed to delete corresponding interviews during bulk delete:", err);
+            }
+            fetchActivityFeed();
+        } catch (error: any) {
+            console.error('Failed to delete tickets:', error);
+            setCandidate({ ...candidate, tickets: originalTickets, companyMulti: candidate.companyMulti });
+            setTicketForm(prev => ({ ...prev, companyMulti: candidate.companyMulti || [] }));
+            showToast(error.message || 'Failed to delete tickets', 'error');
+        }
     };
 
     // --- Role-Based Access Control ---
@@ -1014,12 +1088,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         return ['admin', 'manager', 'super admin', 'superadmin'].includes(role);
     }, [authUser]);
 
+    const canDeleteTickets = useMemo(() => {
+        const role = authUser?.role?.toLowerCase().trim() || '';
+        return ['super admin', 'admin', 'manager', 'operation manager', 'operations manager'].includes(role);
+    }, [authUser]);
+
     // --- Operations Automation: Scheduled Interviews -> Tickets ---
     useEffect(() => {
         if (!candidate || !activities.length || !openJobs.length) return;
 
         const scheduledCompanies = [...new Set(activities
-            .filter(a => a.type === 'Interview' && (a.status === 'Scheduled' || a.stage === 'Scheduled'))
+            .filter(a => a.type === 'Interview' && (a.status === 'Scheduled' || a.status === 'Pending' || a.stage === 'Scheduled'))
             .map(a => a.companyName?.trim())
             .filter(Boolean)
         )];
@@ -1568,12 +1647,33 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             } else if (type === 'Call') {
                 await api.deleteCall(id);
             } else if (type === 'Interview') {
+                // Find the interview details before deleting
+                const interviewToDelete = activities.find(a => a.id === id);
+                
                 await api.deleteInterview(id);
+
+                // Automatically remove the corresponding ticket and update companyMulti if it exists
+                if (interviewToDelete && interviewToDelete.companyName) {
+                    const targetCompanyName = interviewToDelete.companyName.toLowerCase().trim();
+                    const updatedTickets = (candidate.tickets || []).filter((t: any) => 
+                        t.companyName?.toLowerCase().trim() !== targetCompanyName
+                    );
+                    
+                    const updatedCompanyMulti = (candidate.companyMulti || []).filter((c: string) => {
+                        const normC = c.toLowerCase().trim();
+                        if (normC !== targetCompanyName) return true;
+                        return updatedTickets.some((t: any) => t.companyName?.toLowerCase().trim() === normC);
+                    });
+
+                    setCandidate((prev: any) => ({ ...prev, tickets: updatedTickets, companyMulti: updatedCompanyMulti }));
+                    setTicketForm(prev => ({ ...prev, companyMulti: updatedCompanyMulti }));
+                    await api.updateCandidate(candidateId, { tickets: updatedTickets, companyMulti: updatedCompanyMulti });
+                }
             }
             showToast(`${type} deleted successfully`, 'success');
             fetchActivityFeed();
             fetchCandidateData();
-        } catch (error: unknown) {
+        } catch (error: any) {
             showToast(`Failed to delete ${type}`, 'error');
         }
     };
@@ -2237,7 +2337,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                     <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                         <FileTextIcon size={18} /> Tickets Management
                                     </span>
-                                    {selectedTicketIndices.length > 0 && (
+                                    {canDeleteTickets && selectedTicketIndices.length > 0 && (
                                         <button
                                             onClick={handleBulkDeleteTickets}
                                             className="btn-danger-red"
@@ -2264,12 +2364,14 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '40px', textAlign: 'center' }}>
-                                                    <input
-                                                        type="checkbox"
-                                                        onChange={handleSelectAllTickets}
-                                                        checked={candidate.tickets && candidate.tickets.length > 0 && selectedTicketIndices.length === candidate.tickets.length}
-                                                        style={{ cursor: 'pointer' }}
-                                                    />
+                                                    {canDeleteTickets && (
+                                                        <input
+                                                            type="checkbox"
+                                                            onChange={handleSelectAllTickets}
+                                                            checked={candidate.tickets && candidate.tickets.length > 0 && selectedTicketIndices.length === candidate.tickets.length}
+                                                            style={{ cursor: 'pointer' }}
+                                                        />
+                                                    )}
                                                 </th>
                                                 <th>Ticket No</th>
                                                 <th>Company</th>
@@ -2300,12 +2402,14 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                 return (
                                                     <tr key={`ticket-${idx}`} className={trClass}>
                                                         <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={selectedTicketIndices.includes(idx)}
-                                                                onChange={() => handleToggleSelectTicket(idx)}
-                                                                style={{ cursor: 'pointer' }}
-                                                            />
+                                                            {canDeleteTickets && (
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedTicketIndices.includes(idx)}
+                                                                    onChange={() => handleToggleSelectTicket(idx)}
+                                                                    style={{ cursor: 'pointer' }}
+                                                                />
+                                                            )}
                                                         </td>
                                                         <td>
                                                             <input
@@ -2378,13 +2482,15 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                 >
                                                                     <CopyIcon size={14} />
                                                                 </button>
-                                                                <button
-                                                                    onClick={() => handleDeleteTicket(idx)}
-                                                                    className="icon-action-btn red"
-                                                                    title="Delete Ticket"
-                                                                >
-                                                                    <TrashIcon size={14} />
-                                                                </button>
+                                                                {canDeleteTickets && (
+                                                                    <button
+                                                                        onClick={() => handleDeleteTicket(idx)}
+                                                                        className="icon-action-btn red"
+                                                                        title="Delete Ticket"
+                                                                    >
+                                                                        <TrashIcon size={14} />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </td>
                                                     </tr>
@@ -3304,9 +3410,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                             <a onClick={() => handleEditActivity(activity)}>
                                                                 <EditIcon size={14} /> Edit {activity.type}
                                                             </a>
-                                                            <a onClick={() => handleDeleteActivity(activity.id, activity.type)} className="delete-action">
-                                                                <TrashIcon size={14} /> Delete
-                                                            </a>
+                                                            {(activity.type !== 'Interview' || canDeleteTickets) && (
+                                                                <a onClick={() => handleDeleteActivity(activity.id, activity.type)} className="delete-action">
+                                                                    <TrashIcon size={14} /> Delete
+                                                                </a>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 </div>
