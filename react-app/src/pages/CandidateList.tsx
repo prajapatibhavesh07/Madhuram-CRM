@@ -503,13 +503,28 @@ const CandidateList = () => {
     const [columnOrder, setColumnOrder] = useState<string[]>(() => {
         const saved = localStorage.getItem('candidate_column_order');
         const order = saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.key);
+        // Reconcile new columns that are not in the saved list (e.g. after update)
+        const orderSet = new Set(order);
+        ALL_COLUMNS.forEach(c => {
+            if (!orderSet.has(c.key)) {
+                order.push(c.key);
+            }
+        });
         return [...new Set(order)] as string[];
     });
 
     const [visibleColumns, setVisibleColumns] = useState<string[]>(() => {
         const saved = localStorage.getItem('candidate_visible_columns');
-        const visible = saved ? JSON.parse(saved) : ALL_COLUMNS.map(c => c.key);
-        return [...new Set(visible)] as string[];
+        if (saved) {
+            const visible = JSON.parse(saved) as string[];
+            // If we have saved visibility, only add columns that are brand NEW (i.e. not present in the saved configuration at all)
+            const savedOrderStr = localStorage.getItem('candidate_column_order');
+            const savedOrder = savedOrderStr ? JSON.parse(savedOrderStr) : [];
+            const newKeys = ALL_COLUMNS.map(c => c.key).filter(k => !savedOrder.includes(k));
+            return [...new Set([...visible, ...newKeys])] as string[];
+        } else {
+            return ALL_COLUMNS.map(c => c.key);
+        }
     });
 
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
@@ -670,8 +685,6 @@ const CandidateList = () => {
 
     // Persistence & Reconciliation
     useEffect(() => {
-        const allKeys = ALL_COLUMNS.map(c => c.key);
-
         // Deduplicate columnOrder and visibleColumns in state if they contain duplicates
         const uniqueOrder = [...new Set(columnOrder)];
         if (uniqueOrder.length !== columnOrder.length) {
@@ -690,18 +703,7 @@ const CandidateList = () => {
         localStorage.setItem('candidate_visible_columns', JSON.stringify(visibleColumns));
         localStorage.setItem('candidate_pinned_columns', JSON.stringify(pinnedColumns));
         localStorage.setItem('candidate_column_widths', JSON.stringify(columnWidths));
-
-        // Reconcile if missing keys (e.g. after update)
-        const missingFromOrder = allKeys.filter(k => !columnOrder.includes(k));
-        if (missingFromOrder.length > 0) {
-            setColumnOrder(prev => [...new Set([...prev, ...missingFromOrder])]);
-        }
-
-        const missingFromVisible = allKeys.filter(k => !visibleColumns.includes(k));
-        if (missingFromVisible.length > 0) {
-            setVisibleColumns(prev => [...new Set([...prev, ...missingFromVisible])]);
-        }
-    }, [columnOrder, visibleColumns, pinnedColumns, columnWidths, ALL_COLUMNS.length]);
+    }, [columnOrder, visibleColumns, pinnedColumns, columnWidths]);
 
     // Drag and Drop Handlers
     const handleDragStart = (e: React.DragEvent, colKey: string) => {
