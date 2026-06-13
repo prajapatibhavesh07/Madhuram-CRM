@@ -18,7 +18,8 @@ const settingsSchema = new mongoose.Schema({
     general: {
         companyName: { type: String, default: "CRM Enterprise" },
         website: String,
-        dateFormat: { type: String, default: "DD/MM/YYYY" }
+        dateFormat: { type: String, default: "DD/MM/YYYY" },
+        companyLogo: { type: String, default: "" }
     },
     attendance: {
         workingDays: { type: [String], default: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] },

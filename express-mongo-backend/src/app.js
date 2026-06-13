@@ -61,6 +61,7 @@ app.use("/api/candidates", candidateRoutes);
 app.use("/api/options", optionRoutes);
 app.use("/api/folders", folderRoutes);
 app.use("/api/files", fileRoutes);
+app.use("/api/workflows", require("./routes/workflow.routes"));
 app.use("/api/jobs", require("./routes/job.routes"));
 app.use("/api/interviews", require("./routes/interview.routes"));
 app.use("/api/offers", require("./routes/offer.routes"));

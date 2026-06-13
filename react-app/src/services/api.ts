@@ -276,6 +276,83 @@ export const api = {
         return handleResponse(response, 'Failed to add option');
     },
 
+    deleteOption: async (data: { category: string, value: string }) => {
+        const response = await fetch(`${BASE_URL}/api/options`, {
+            method: 'DELETE',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+
+        return handleResponse(response, 'Failed to delete option');
+    },
+
+    updateOption: async (data: { category: string, oldValue: string, newValue: string }) => {
+        const response = await fetch(`${BASE_URL}/api/options`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+
+        return handleResponse(response, 'Failed to update option');
+    },
+
+    // Workflows Management
+    getWorkflows: async () => {
+        const response = await fetch(`${BASE_URL}/api/workflows`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to fetch workflows');
+    },
+
+    resolveWorkflow: async (params?: { candidateId?: string; jobId?: string; companyName?: string; category?: string }) => {
+        const urlParams = new URLSearchParams();
+        if (params) {
+            Object.entries(params).forEach(([key, val]) => {
+                if (val) urlParams.append(key, val);
+            });
+        }
+        const response = await fetch(`${BASE_URL}/api/workflows/resolve?${urlParams.toString()}`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to resolve workflow');
+    },
+
+    createWorkflow: async (data: any) => {
+        const response = await fetch(`${BASE_URL}/api/workflows`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+        return handleResponse(response, 'Failed to create workflow');
+    },
+
+    updateWorkflow: async (id: string, data: any) => {
+        const response = await fetch(`${BASE_URL}/api/workflows/${id}`, {
+            method: 'PUT',
+            headers: getHeaders(),
+            body: JSON.stringify(data)
+        });
+        return handleResponse(response, 'Failed to update workflow');
+    },
+
+    deleteWorkflow: async (id: string) => {
+        const response = await fetch(`${BASE_URL}/api/workflows/${id}`, {
+            method: 'DELETE',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to delete workflow');
+    },
+
+    duplicateWorkflow: async (id: string) => {
+        const response = await fetch(`${BASE_URL}/api/workflows/${id}/duplicate`, {
+            method: 'POST',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to duplicate workflow');
+    },
+
     // Jobs
     getJobs: async (filters?: { status?: string, type?: string, company?: string }) => {
         const query = new URLSearchParams(filters as any).toString();
@@ -633,6 +710,14 @@ export const api = {
     },
 
     // System Settings
+    getPublicSettings: async () => {
+        const response = await fetch(`${BASE_URL}/api/settings/public`, {
+            method: 'GET',
+            headers: getHeaders()
+        });
+        return handleResponse(response, 'Failed to fetch public settings');
+    },
+
     getSettings: async () => {
         const response = await fetch(`${BASE_URL}/api/settings`, {
             method: 'GET',

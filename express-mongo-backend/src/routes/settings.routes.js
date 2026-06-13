@@ -7,6 +7,7 @@ const authorize = require("../middleware/roleMiddleware");
 // Only Admin/Super Admin can manage system settings
 const adminRoles = ["Super Admin", "Admin"];
 
+router.get("/public", authenticate, settingsController.getPublicSettings);
 router.get("/", authenticate, authorize(adminRoles), settingsController.getSettings);
 router.put("/", authenticate, authorize(adminRoles), settingsController.updateSettings);
 

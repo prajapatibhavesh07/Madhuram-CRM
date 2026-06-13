@@ -2,21 +2,21 @@ const User = require("../models/User");
 const Role = require("../models/Role");
 
 const MODULE_PERMISSIONS = {
-    dashboard: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
-    candidates: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter'] },
-    jobs: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter'] },
-    operations: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter'] },
-    tasks: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
-    callHistory: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
-    offers: { roles: ['Super Admin', 'Admin', 'Manager', 'HR'] },
-    users: { roles: ['Super Admin', 'Admin'] },
-    attendance: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
-    leaves: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
+    dashboard: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
+    candidates: { roles: ['Super Admin', 'Admin', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter'] },
+    jobs: { roles: ['Super Admin', 'Admin', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter'] },
+    operations: { roles: ['Super Admin', 'Admin', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter'] },
+    tasks: { roles: ['Super Admin', 'Admin', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
+    callHistory: { roles: ['Super Admin', 'Admin', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
+    offers: { roles: ['Super Admin', 'Admin', 'Manager', 'Operation Manager'] },
+    users: { roles: ['Super Admin', 'Admin', 'Manager'] },
+    attendance: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
+    leaves: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
     payroll: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
     fileManager: { roles: ['Super Admin', 'Admin', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
-    importExport: { roles: ['Super Admin', 'Admin'] },
+    importExport: { roles: ['Super Admin', 'Admin', 'Operation Manager'] },
     settings: { roles: ['Super Admin', 'Admin'] },
-    birthdays: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
+    birthdays: { roles: ['Super Admin', 'Admin', 'HR', 'Manager', 'Operation Manager', 'Team Lead', 'Recruiter', 'Normal User'] },
     roles: { roles: ['Super Admin', 'Admin'] }
 };
 
@@ -29,17 +29,17 @@ const BUILT_IN_PERMISSIONS = {
     ),
     'HR': {
         dashboard: { view: true, create: false, edit: false, delete: false },
-        candidates: { view: true, create: true, edit: true, delete: false },
-        jobs: { view: true, create: false, edit: false, delete: false },
+        candidates: { view: false, create: false, edit: false, delete: false },
+        jobs: { view: false, create: false, edit: false, delete: false },
         operations: { view: false, create: false, edit: false, delete: false },
-        tasks: { view: true, create: true, edit: true, delete: false },
-        callHistory: { view: true, create: false, edit: false, delete: false },
-        offers: { view: true, create: true, edit: true, delete: true },
+        tasks: { view: false, create: false, edit: false, delete: false },
+        callHistory: { view: false, create: false, edit: false, delete: false },
+        offers: { view: false, create: false, edit: false, delete: false },
         users: { view: false, create: false, edit: false, delete: false },
         attendance: { view: true, create: false, edit: false, delete: false },
         leaves: { view: true, create: true, edit: true, delete: true },
         payroll: { view: true, create: false, edit: false, delete: false },
-        fileManager: { view: true, create: false, edit: false, delete: false },
+        fileManager: { view: false, create: false, edit: false, delete: false },
         importExport: { view: false, create: false, edit: false, delete: false },
         settings: { view: false, create: false, edit: false, delete: false },
         birthdays: { view: true, create: false, edit: false, delete: false },
@@ -53,12 +53,30 @@ const BUILT_IN_PERMISSIONS = {
         tasks: { view: true, create: true, edit: true, delete: true },
         callHistory: { view: true, create: false, edit: false, delete: false },
         offers: { view: true, create: false, edit: false, delete: false },
-        users: { view: false, create: false, edit: false, delete: false },
+        users: { view: true, create: false, edit: false, delete: false },
         attendance: { view: true, create: false, edit: false, delete: false },
         leaves: { view: true, create: false, edit: true, delete: false },
         payroll: { view: true, create: false, edit: false, delete: false },
         fileManager: { view: true, create: false, edit: false, delete: false },
         importExport: { view: false, create: false, edit: false, delete: false },
+        settings: { view: false, create: false, edit: false, delete: false },
+        birthdays: { view: true, create: false, edit: false, delete: false },
+        roles: { view: false, create: false, edit: false, delete: false }
+    },
+    'Operation Manager': {
+        dashboard: { view: true, create: false, edit: false, delete: false },
+        candidates: { view: true, create: false, edit: true, delete: false },
+        jobs: { view: true, create: false, edit: true, delete: false },
+        operations: { view: true, create: false, edit: true, delete: false },
+        tasks: { view: true, create: true, edit: true, delete: true },
+        callHistory: { view: true, create: false, edit: false, delete: false },
+        offers: { view: true, create: false, edit: false, delete: false },
+        users: { view: false, create: false, edit: false, delete: false },
+        attendance: { view: true, create: false, edit: false, delete: false },
+        leaves: { view: true, create: false, edit: true, delete: false },
+        payroll: { view: false, create: false, edit: false, delete: false },
+        fileManager: { view: false, create: false, edit: false, delete: false },
+        importExport: { view: true, create: false, edit: false, delete: false },
         settings: { view: false, create: false, edit: false, delete: false },
         birthdays: { view: true, create: false, edit: false, delete: false },
         roles: { view: false, create: false, edit: false, delete: false }
@@ -149,7 +167,7 @@ const getActionFromMethod = (method) => {
 
 const getUserPermissions = async (user) => {
     if (!user) return null;
-    
+
     if (user.customRoleId) {
         try {
             const role = await Role.findById(user.customRoleId);
@@ -165,7 +183,22 @@ const getUserPermissions = async (user) => {
             console.error('Error fetching custom role:', error);
         }
     }
-    
+
+    // Fallback: Check if there is an edited built-in role in the database
+    try {
+        const role = await Role.findOne({ name: user.role });
+        if (role) {
+            const permissions = {};
+            const permissionsObj = role.permissions.toJSON ? role.permissions.toJSON() : role.permissions;
+            for (const [key, value] of Object.entries(permissionsObj)) {
+                permissions[key] = value;
+            }
+            return permissions;
+        }
+    } catch (error) {
+        console.error('Error fetching built-in role from database:', error);
+    }
+
     return BUILT_IN_PERMISSIONS[user.role] || null;
 };
 
@@ -176,25 +209,31 @@ const authorize = (allowedRoles) => {
                 return res.status(401).json({ message: "Unauthorized: No user found" });
             }
 
-            if (!allowedRoles.includes(req.user.role)) {
+            const isAdmin = req.user.role === 'Super Admin' || req.user.role === 'Admin';
+
+            if (!isAdmin) {
+                // First verify if the role is allowed at all on this endpoint
+                if (!allowedRoles.includes(req.user.role)) {
+                    return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role}` });
+                }
+
+                // Check specific module and action permissions
                 const permissions = await getUserPermissions(req.user);
                 const moduleName = getModuleNameFromUrl(req.baseUrl);
                 const action = getActionFromMethod(req.method);
-                
+
                 if (moduleName && permissions && permissions[moduleName]) {
                     if (!permissions[moduleName][action]) {
-                        return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role} on ${moduleName}` });
+                        return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role} on ${moduleName} for action ${action}` });
                     }
                 } else {
-                    if (!permissions || !permissions.roles || !permissions.roles.view) {
-                        return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role}` });
-                    }
+                    return res.status(403).json({ message: `Forbidden: Access denied for role ${req.user.role} (no module permissions)` });
                 }
             }
 
             const permissions = await getUserPermissions(req.user);
             req.userPermissions = permissions;
-            
+
             next();
         } catch (error) {
             console.error('Authorization error:', error);
@@ -210,14 +249,17 @@ const authorizeModule = (moduleName, action = 'view') => {
                 return res.status(401).json({ message: "Unauthorized: No user found" });
             }
 
+            const isAdmin = req.user.role === 'Super Admin' || req.user.role === 'Admin';
             const permissions = await getUserPermissions(req.user);
-            
-            if (!permissions || !permissions[moduleName]) {
-                return res.status(403).json({ message: `Forbidden: No access to ${moduleName}` });
-            }
 
-            if (!permissions[moduleName][action]) {
-                return res.status(403).json({ message: `Forbidden: Cannot ${action} ${moduleName}` });
+            if (!isAdmin) {
+                if (!permissions || !permissions[moduleName]) {
+                    return res.status(403).json({ message: `Forbidden: No access to ${moduleName}` });
+                }
+
+                if (!permissions[moduleName][action]) {
+                    return res.status(403).json({ message: `Forbidden: Cannot ${action} ${moduleName}` });
+                }
             }
 
             req.userPermissions = permissions;
@@ -233,7 +275,7 @@ const getSubordinateIds = async (userId) => {
     try {
         let allSubordinateIds = [];
         let currentLevelIds = [userId];
-        
+
         while (currentLevelIds.length > 0) {
             const subordinates = await User.find({
                 $or: [
@@ -242,16 +284,16 @@ const getSubordinateIds = async (userId) => {
                 ],
                 _id: { $nin: [userId, ...allSubordinateIds] }
             }).select('_id');
-            
+
             if (subordinates.length === 0) {
                 break;
             }
-            
+
             const nextLevelIds = subordinates.map(s => s._id);
             allSubordinateIds = allSubordinateIds.concat(nextLevelIds);
             currentLevelIds = nextLevelIds;
         }
-        
+
         return allSubordinateIds;
     } catch (error) {
         console.error('Error fetching subordinate IDs:', error);

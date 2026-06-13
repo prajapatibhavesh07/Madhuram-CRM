@@ -151,7 +151,9 @@ const JobList = () => {
     const { showToast } = useToast();
 
     const { user, activeRole } = useAuth();
-    const canDelete = user?.role === 'Super Admin' || activeRole?.permissions?.jobs?.delete === true;
+    const canCreate = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.jobs?.create === true;
+    const canEdit = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.jobs?.edit === true;
+    const canDelete = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.jobs?.delete === true;
     const [activeMenu, setActiveMenu] = useState<string | null>(null);
     const [contextMenu, setContextMenu] = useState<{ x: number, y: number, job: Job } | null>(null);
     const [groupBy, setGroupBy] = useState<'status' | 'company'>('status');
@@ -752,12 +754,14 @@ const JobList = () => {
                             <TrashIcon size={18} className="mr-8" /> Delete ({selectedIds.length})
                         </button>
                     )}
-                    <button
-                        className="btn btn-primary"
-                        onClick={handleOpenJobDrawer}
-                    >
-                        <PlusIcon size={18} className="mr-8" /> Post New Job
-                    </button>
+                    {canCreate && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={handleOpenJobDrawer}
+                        >
+                            <PlusIcon size={18} className="mr-8" /> Post New Job
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -944,7 +948,7 @@ const JobList = () => {
                                     <tr
                                         key={job.uniqueId}
                                         className={`${selectedIds.includes(job._id) ? 'selected-row' : ''} table-row-clickable`}
-                                        onDoubleClick={() => handleEditJob(job._id, job.managerIndex)}
+                                        onDoubleClick={() => canEdit && handleEditJob(job._id, job.managerIndex)}
                                         onContextMenu={(e) => handleContextMenu(e, job)}
                                     >
                                         {canDelete && (
@@ -974,9 +978,11 @@ const JobList = () => {
                                                     </button>
                                                     {activeMenu === job.uniqueId && (
                                                         <div className="kanban-card__menu" style={{ right: 0, top: '100%' }}>
-                                                            <div onClick={(e) => { e.stopPropagation(); handleEditJob(job._id, job.managerIndex); setActiveMenu(null); }} className="kanban-card__menu-item">
-                                                                <EditIcon size={14} /> Edit
-                                                            </div>
+                                                            {canEdit && (
+                                                                <div onClick={(e) => { e.stopPropagation(); handleEditJob(job._id, job.managerIndex); setActiveMenu(null); }} className="kanban-card__menu-item">
+                                                                    <EditIcon size={14} /> Edit
+                                                                </div>
+                                                            )}
                                                             <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(job._id); setActiveMenu(null); }} className="kanban-card__menu-item">
                                                                 <MailIcon size={14} /> Email Candidates
                                                             </div>
@@ -1085,7 +1091,7 @@ const JobList = () => {
                                             <tr
                                                 key={job.uniqueId}
                                                 className={`${selectedIds.includes(job._id) ? 'selected-row' : ''} table-row-clickable`}
-                                                onDoubleClick={() => handleEditJob(job._id, job.managerIndex)}
+                                                onDoubleClick={() => canEdit && handleEditJob(job._id, job.managerIndex)}
                                                 onContextMenu={(e) => handleContextMenu(e, job)}
                                             >
                                                 {canDelete && (
@@ -1115,9 +1121,11 @@ const JobList = () => {
                                                             </button>
                                                             {activeMenu === job.uniqueId && (
                                                                 <div className="kanban-card__menu" style={{ right: 0, top: '100%' }}>
-                                                                    <div onClick={(e) => { e.stopPropagation(); handleEditJob(job._id, job.managerIndex); setActiveMenu(null); }} className="kanban-card__menu-item">
-                                                                        <EditIcon size={14} /> Edit
-                                                                    </div>
+                                                                    {canEdit && (
+                                                                        <div onClick={(e) => { e.stopPropagation(); handleEditJob(job._id, job.managerIndex); setActiveMenu(null); }} className="kanban-card__menu-item">
+                                                                            <EditIcon size={14} /> Edit
+                                                                        </div>
+                                                                    )}
                                                                     <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(job._id); setActiveMenu(null); }} className="kanban-card__menu-item">
                                                                         <MailIcon size={14} /> Email Candidates
                                                                     </div>
@@ -1240,7 +1248,8 @@ const JobList = () => {
                                             draggable
                                             onDragStart={(e) => handleDragStart(e, job._id, job.managerIndex)}
                                             onDragEnd={handleDragEnd}
-                                            onDoubleClick={() => handleEditJob(job._id, job.managerIndex)}
+                                            onDoubleClick={() => canEdit && handleEditJob(job._id, job.managerIndex)}
+                                            onContextMenu={(e) => handleContextMenu(e, job)}
                                         >
                                             <div className="kanban-card__header">
                                                 <div className="kanban-card__logo-wrapper">
@@ -1870,9 +1879,11 @@ const JobList = () => {
                         minWidth: '180px'
                     }}
                 >
-                    <div onClick={(e) => { e.stopPropagation(); handleEditJob(contextMenu.job._id, contextMenu.job.managerIndex); setContextMenu(null); }} className="kanban-card__menu-item">
-                        <EditIcon size={14} /> Edit
-                    </div>
+                    {canEdit && (
+                        <div onClick={(e) => { e.stopPropagation(); handleEditJob(contextMenu.job._id, contextMenu.job.managerIndex); setContextMenu(null); }} className="kanban-card__menu-item">
+                            <EditIcon size={14} /> Edit
+                        </div>
+                    )}
                     <div onClick={(e) => { e.stopPropagation(); setEmailModalJobId(contextMenu.job._id); setContextMenu(null); }} className="kanban-card__menu-item">
                         <MailIcon size={14} /> Email Candidates
                     </div>

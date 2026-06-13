@@ -37,3 +37,12 @@ exports.updateSettings = async (req, res) => {
         res.status(400).json({ message: error.message });
     }
 };
+
+exports.getPublicSettings = async (req, res) => {
+    try {
+        const settings = await Settings.findOne().select('general');
+        res.json(settings || { general: { companyName: "CRM Enterprise", companyLogo: "" } });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};

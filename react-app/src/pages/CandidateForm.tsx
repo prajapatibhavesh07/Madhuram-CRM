@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, BASE_URL } from '../services/api';
 import Popover from '../components/Popover';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
 import DocumentPreviewModal from '../components/DocumentPreviewModal';
 import Modal from '../components/Modal';
 import AppDateInput from '../components/AppDateInput';
@@ -34,6 +35,8 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
     const id = candidateId || routeId;
 
     const { showToast } = useToast();
+    const { user, activeRole } = useAuth();
+    const canCreateOptions = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.settings?.create === true;
     const [submitting, setSubmitting] = useState(false);
     const [loading, setLoading] = useState(false);
     const [wasValidated, setWasValidated] = useState(false);
@@ -87,7 +90,11 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
         qualification: ['Graduate', 'Post Graduate', 'MBA', 'Other'],
         channel: ['Banca', 'Agency', 'Direct', 'Other'],
         ticketCompany: [],
-        ticketType: []
+        ticketType: [],
+        leadTag: ['Jobseeker', 'Lead', 'Client', 'Other'],
+        recruitmentStatus: ['Applied', 'Shortlisted', 'Interviewed', 'Offered', 'Rejected', 'Joined'],
+        jobTitle: [],
+        assessmentStatus: ['Clear', 'Not Clear', 'Pending']
     });
 
     const [popoverValues, setPopoverValues] = useState({
@@ -100,7 +107,10 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
         ticketCompany: '',
         ticketType: '',
         qualification: '',
-        jobTitle: ''
+        jobTitle: '',
+        leadTag: '',
+        recruitmentStatus: '',
+        assessmentStatus: ''
     });
 
     const [tickets, setTickets] = useState<Ticket[]>([
@@ -639,19 +649,21 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                         <div className="input-group">
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <label>Current Profile</label>
-                                <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
-                                    <div className="popover-container">
-                                        <input
-                                            type="text"
-                                            className="input-field mb-8"
-                                            placeholder="New Profile"
-                                            value={popoverValues.currentProfile}
-                                            onChange={(e) => handlePopoverInputChange('currentProfile', e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('currentProfile', e))}
-                                        />
-                                        <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('currentProfile', e)}>Set Profile</button>
-                                    </div>
-                                </Popover>
+                                {canCreateOptions && (
+                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                        <div className="popover-container">
+                                            <input
+                                                type="text"
+                                                className="input-field mb-8"
+                                                placeholder="New Profile"
+                                                value={popoverValues.currentProfile}
+                                                onChange={(e) => handlePopoverInputChange('currentProfile', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('currentProfile', e))}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('currentProfile', e)}>Set Profile</button>
+                                        </div>
+                                    </Popover>
+                                )}
                             </div>
                             <select id="currentProfile" value={formData.currentProfile} onChange={handleInputChange} className="input-field">
                                 <option value="">Select Profile</option>
@@ -661,19 +673,21 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                         <div className="input-group">
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <label>Designation</label>
-                                <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
-                                    <div className="popover-container">
-                                        <input
-                                            type="text"
-                                            className="input-field mb-8"
-                                            placeholder="New Designation"
-                                            value={popoverValues.designation}
-                                            onChange={(e) => handlePopoverInputChange('designation', e.target.value)}
-                                            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('designation', e))}
-                                        />
-                                        <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('designation', e)}>Set Designation</button>
-                                    </div>
-                                </Popover>
+                                {canCreateOptions && (
+                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                        <div className="popover-container">
+                                            <input
+                                                type="text"
+                                                className="input-field mb-8"
+                                                placeholder="New Designation"
+                                                value={popoverValues.designation}
+                                                onChange={(e) => handlePopoverInputChange('designation', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('designation', e))}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('designation', e)}>Set Designation</button>
+                                        </div>
+                                    </Popover>
+                                )}
                             </div>
                             <select id="designation" value={formData.designation} onChange={handleInputChange} className="input-field">
                                 <option value="">Select Designation</option>
@@ -688,19 +702,21 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                             <div className="label-flex-between">
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <label>Notice Period</label>
-                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
-                                        <div className="popover-container">
-                                            <input
-                                                type="text"
-                                                className="input-field mb-8"
-                                                placeholder="New Notice Period"
-                                                value={popoverValues.noticePeriod}
-                                                onChange={(e) => handlePopoverInputChange('noticePeriod', e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('noticePeriod', e))}
-                                            />
-                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('noticePeriod', e)}>Add Option</button>
-                                        </div>
-                                    </Popover>
+                                    {canCreateOptions && (
+                                        <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                            <div className="popover-container">
+                                                <input
+                                                    type="text"
+                                                    className="input-field mb-8"
+                                                    placeholder="New Notice Period"
+                                                    value={popoverValues.noticePeriod}
+                                                    onChange={(e) => handlePopoverInputChange('noticePeriod', e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('noticePeriod', e))}
+                                                />
+                                                <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('noticePeriod', e)}>Add Option</button>
+                                            </div>
+                                        </Popover>
+                                    )}
                                 </div>
                             </div>
                             <select id="noticePeriod" value={formData.noticePeriod} onChange={handleInputChange} className="input-field">
@@ -712,18 +728,20 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                             <div className="label-flex-between">
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <label>Sector</label>
-                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
-                                        <div className="popover-container">
-                                            <input
-                                                type="text"
-                                                className="input-field mb-8"
-                                                placeholder="New Sector"
-                                                value={popoverValues.sector}
-                                                onChange={(e) => handlePopoverInputChange('sector', e.target.value)}
-                                            />
-                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('sector', e)}>Add Sector</button>
-                                        </div>
-                                    </Popover>
+                                    {canCreateOptions && (
+                                        <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                            <div className="popover-container">
+                                                <input
+                                                    type="text"
+                                                    className="input-field mb-8"
+                                                    placeholder="New Sector"
+                                                    value={popoverValues.sector}
+                                                    onChange={(e) => handlePopoverInputChange('sector', e.target.value)}
+                                                />
+                                                <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('sector', e)}>Add Sector</button>
+                                            </div>
+                                        </Popover>
+                                    )}
                                 </div>
                             </div>
                             <select id="sector" value={formData.sector} onChange={handleInputChange} className="input-field">
@@ -801,19 +819,21 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                             <div className="label-flex-between">
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <label>Channel</label>
-                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
-                                        <div className="popover-container">
-                                            <input
-                                                type="text"
-                                                className="input-field mb-8"
-                                                placeholder="New Channel"
-                                                value={popoverValues.channel}
-                                                onChange={(e) => handlePopoverInputChange('channel', e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('channel', e))}
-                                            />
-                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('channel', e)}>Add Channel</button>
-                                        </div>
-                                    </Popover>
+                                    {canCreateOptions && (
+                                        <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                            <div className="popover-container">
+                                                <input
+                                                    type="text"
+                                                    className="input-field mb-8"
+                                                    placeholder="New Channel"
+                                                    value={popoverValues.channel}
+                                                    onChange={(e) => handlePopoverInputChange('channel', e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('channel', e))}
+                                                />
+                                                <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('channel', e)}>Add Channel</button>
+                                            </div>
+                                        </Popover>
+                                    )}
                                 </div>
                             </div>
                             <select id="channel" value={formData.channel} onChange={handleInputChange} className="input-field">
@@ -825,19 +845,22 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                             <div className="label-flex-between">
                                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                     <label>Qualification</label>
-                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
-                                        <div className="popover-container">
-                                            <input
-                                                type="text"
-                                                className="input-field mb-8"
-                                                placeholder="New Qualification"
-                                                value={popoverValues.qualification}
-                                                onChange={(e) => handlePopoverInputChange('qualification', e.target.value)}
-                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('qualification', e))}
-                                            />
-                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('qualification', e)}>Add Qualification</button>
-                                        </div>
-                                    </Popover></div>
+                                    {canCreateOptions && (
+                                        <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                            <div className="popover-container">
+                                                <input
+                                                    type="text"
+                                                    className="input-field mb-8"
+                                                    placeholder="New Qualification"
+                                                    value={popoverValues.qualification}
+                                                    onChange={(e) => handlePopoverInputChange('qualification', e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('qualification', e))}
+                                                />
+                                                <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('qualification', e)}>Add Qualification</button>
+                                            </div>
+                                        </Popover>
+                                    )}
+                                </div>
                             </div>
                             <select id="qualification" value={formData.qualification} onChange={handleInputChange} className="input-field">
                                 <option value="">Select Qualification</option>
@@ -851,9 +874,25 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                         <div className="input-group">
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <label>Lead Tag</label>
+                                {canCreateOptions && (
+                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                        <div className="popover-container">
+                                            <input
+                                                type="text"
+                                                className="input-field mb-8"
+                                                placeholder="New Lead Tag"
+                                                value={popoverValues.leadTag}
+                                                onChange={(e) => handlePopoverInputChange('leadTag', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('leadTag', e))}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('leadTag', e)}>Add Option</button>
+                                        </div>
+                                    </Popover>
+                                )}
                             </div>
                             <select id="leadTag" value={formData.leadTag} onChange={handleInputChange} className="input-field">
-                                <option>Jobseeker</option><option>Lead</option><option>Client</option><option>Other</option>
+                                <option value="">Select Lead Tag</option>
+                                {(dynamicOptions.leadTag || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
                         <div className="input-group">
@@ -880,9 +919,27 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                             </select>
                         </div>
                         <div className="input-group">
-                            <label>Recruitment Status</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <label>Recruitment Status</label>
+                                {canCreateOptions && (
+                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                        <div className="popover-container">
+                                            <input
+                                                type="text"
+                                                className="input-field mb-8"
+                                                placeholder="New Recruitment Status"
+                                                value={popoverValues.recruitmentStatus}
+                                                onChange={(e) => handlePopoverInputChange('recruitmentStatus', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('recruitmentStatus', e))}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('recruitmentStatus', e)}>Add Option</button>
+                                        </div>
+                                    </Popover>
+                                )}
+                            </div>
                             <select id="recruitmentStatus" value={formData.recruitmentStatus} onChange={handleInputChange} className="input-field">
-                                <option>Applied</option><option>Shortlisted</option><option>Interviewed</option><option>Offered</option><option>Rejected</option><option>Joined</option>
+                                <option value="">Select Status</option>
+                                {(dynamicOptions.recruitmentStatus || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
                     </div>
@@ -908,9 +965,27 @@ const CandidateForm = ({ candidateId, onClose }: CandidateFormProps) => {
                             <input type="number" id="bfsiExp" value={formData.bfsiExp} onChange={handleInputChange} className="input-field" step="0.5" />
                         </div>
                         <div className="input-group">
-                            <label>Assessment Status</label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <label>Assessment Status</label>
+                                {canCreateOptions && (
+                                    <Popover trigger={<button type="button" className="btn btn-ghost btn-sm text-primary">+ Add New</button>}>
+                                        <div className="popover-container">
+                                            <input
+                                                type="text"
+                                                className="input-field mb-8"
+                                                placeholder="New Assessment Status"
+                                                value={popoverValues.assessmentStatus}
+                                                onChange={(e) => handlePopoverInputChange('assessmentStatus', e.target.value)}
+                                                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handlePopoverSubmit('assessmentStatus', e))}
+                                            />
+                                            <button type="button" className="btn btn-primary btn-block btn-sm" onClick={(e) => handlePopoverSubmit('assessmentStatus', e)}>Add Option</button>
+                                        </div>
+                                    </Popover>
+                                )}
+                            </div>
                             <select id="assessment" value={formData.assessment} onChange={handleInputChange} className="input-field">
-                                <option>Clear</option><option>Not Clear</option><option>Pending</option>
+                                <option value="">Select Assessment</option>
+                                {(dynamicOptions.assessmentStatus || []).map(opt => <option key={opt} value={opt}>{opt}</option>)}
                             </select>
                         </div>
                         {formData.applicationId && (

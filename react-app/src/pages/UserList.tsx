@@ -48,6 +48,8 @@ interface UserData {
 
 const UserList = () => {
     const { user: currentUser, activeRole } = useAuth();
+    const canCreate = currentUser?.role === 'Super Admin' || currentUser?.role === 'Admin' || activeRole?.permissions?.users?.create === true;
+    const canEdit = currentUser?.role === 'Super Admin' || currentUser?.role === 'Admin' || activeRole?.permissions?.users?.edit === true;
     const canDelete = currentUser?.role === 'Super Admin' || activeRole?.permissions?.users?.delete === true;
     const navigate = useNavigate();
     const { showToast } = useToast();
@@ -271,12 +273,14 @@ const UserList = () => {
                         </button>
                     )}
 
-                    <button
-                        onClick={() => navigate('/users/register')}
-                        className="btn btn-primary"
-                    >
-                        <PlusIcon size={18} className="mr-8" /> Add User
-                    </button>
+                    {canCreate && (
+                        <button
+                            onClick={() => navigate('/users/register')}
+                            className="btn btn-primary"
+                        >
+                            <PlusIcon size={18} className="mr-8" /> Add User
+                        </button>
+                    )}
                 </div>
             </div>
             {viewMode === 'list' ? (
@@ -372,7 +376,7 @@ const UserList = () => {
                             {paginatedUsers.map((u) => (
                                 <tr
                                     key={u._id || u.username}
-                                    onDoubleClick={() => handleAction('edit', u)}
+                                    onDoubleClick={() => canEdit && handleAction('edit', u)}
                                     className={`modern-table-row pointer-cursor ${selectedUserIds.includes(u._id) ? 'row-selected' : ''}`}
                                     onClick={() => handleSelectUser(u._id)}
                                     onContextMenu={(e) => {
@@ -426,10 +430,12 @@ const UserList = () => {
                                     <td>
                                         <div
                                             onClick={(e) => {
+                                                if (!canEdit) return;
                                                 e.stopPropagation();
                                                 handleStatusToggle(u);
                                             }}
                                             className={`status-badge ${u.status === 'Active' ? 'success' : 'warning'}`}
+                                            style={{ cursor: canEdit ? 'pointer' : 'default' }}
                                         >
                                             <div className="status-indicator"></div>
                                             <HighlightText text={u.status} highlight={searchQuery} />
@@ -469,7 +475,7 @@ const UserList = () => {
                             <div
                                 key={u._id || u.username}
                                 className="modern-card"
-                                onDoubleClick={() => handleAction('edit', u)}
+                                onDoubleClick={() => canEdit && handleAction('edit', u)}
                             >
                                 <div className="modern-card-header">
                                     <div className={`modern-avatar-large ${!u.profilePhoto ? 'no-photo' : ''}`} style={u.profilePhoto ? { backgroundImage: `url(${BASE_URL}${u.profilePhoto})` } : {}}>
@@ -500,13 +506,17 @@ const UserList = () => {
                                             <div onClick={() => { handleAction('view', u); setActiveMenu(null); }} className="user-menu-item">
                                                 <EyeIcon size={16} /> View Profile
                                             </div>
-                                            <div onClick={() => { handleAction('edit', u); setActiveMenu(null); }} className="user-menu-item">
-                                                <EditIcon size={16} /> Edit Details
-                                            </div>
-                                            <div onClick={() => { handleStatusToggle(u); setActiveMenu(null); }} className="user-menu-item">
-                                                {u.status === 'Active' ? <XCircleIcon size={16} /> : <CheckCircleIcon size={16} />}
-                                                {u.status === 'Active' ? 'Deactivate' : 'Activate'}
-                                            </div>
+                                            {canEdit && (
+                                                <div onClick={() => { handleAction('edit', u); setActiveMenu(null); }} className="user-menu-item">
+                                                    <EditIcon size={16} /> Edit Details
+                                                </div>
+                                            )}
+                                            {canEdit && (
+                                                <div onClick={() => { handleStatusToggle(u); setActiveMenu(null); }} className="user-menu-item">
+                                                    {u.status === 'Active' ? <XCircleIcon size={16} /> : <CheckCircleIcon size={16} />}
+                                                    {u.status === 'Active' ? 'Deactivate' : 'Activate'}
+                                                </div>
+                                            )}
                                             {canDelete && (
                                                 <div onClick={() => { handleAction('delete', u); setActiveMenu(null); }} className="user-menu-item delete">
                                                     <TrashIcon size={16} /> Delete User
@@ -600,14 +610,18 @@ const UserList = () => {
                             <EyeIcon size={16} />
                             <span>View Details</span>
                         </div>
-                        <div className="menu-item" onClick={() => { handleAction('edit', rowMenu.user); setRowMenu(null); }}>
-                            <EditIcon size={16} />
-                            <span>Edit User</span>
-                        </div>
-                        <div className="menu-item" onClick={() => { handleStatusToggle(rowMenu.user); setRowMenu(null); }}>
-                            {rowMenu.user.status === 'Active' ? <XCircleIcon size={16} /> : <CheckCircleIcon size={16} />}
-                            <span>{rowMenu.user.status === 'Active' ? 'Deactivate' : 'Activate'}</span>
-                        </div>
+                        {canEdit && (
+                            <div className="menu-item" onClick={() => { handleAction('edit', rowMenu.user); setRowMenu(null); }}>
+                                <EditIcon size={16} />
+                                <span>Edit User</span>
+                            </div>
+                        )}
+                        {canEdit && (
+                            <div className="menu-item" onClick={() => { handleStatusToggle(rowMenu.user); setRowMenu(null); }}>
+                                {rowMenu.user.status === 'Active' ? <XCircleIcon size={16} /> : <CheckCircleIcon size={16} />}
+                                <span>{rowMenu.user.status === 'Active' ? 'Deactivate' : 'Activate'}</span>
+                            </div>
+                        )}
                         <div className="menu-divider" />
                         {canDelete && (
                             <div className="menu-item danger" onClick={() => { handleAction('delete', rowMenu.user); setRowMenu(null); }}>

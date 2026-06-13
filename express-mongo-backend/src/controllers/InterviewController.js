@@ -3,11 +3,16 @@ const auditService = require('../services/auditService');
 const notificationService = require('../services/notificationService');
 const Candidate = require('../models/Candidate');
 const { getSubordinateIds } = require('../middleware/roleMiddleware');
+const { runStageWorkflowAutomation } = require('../services/workflowAutomationService');
 
 exports.scheduleInterview = async (req, res) => {
     try {
         const interview = new Interview({ ...req.body, createdBy: req.user?._id });
         await interview.save();
+
+        if (interview.stage) {
+            await runStageWorkflowAutomation(interview, interview.stage);
+        }
 
         await auditService.logAction(req, {
             action: 'CREATE',
@@ -118,6 +123,10 @@ exports.updateInterview = async (req, res) => {
         }
 
         const interview = await Interview.findByIdAndUpdate(req.params.id, req.body, { new: true });
+
+        if (req.body.stage && req.body.stage !== oldInterview.stage) {
+            await runStageWorkflowAutomation(interview, req.body.stage);
+        }
 
         const changes = auditService.detectChanges(oldInterview, interview);
         if (changes) {

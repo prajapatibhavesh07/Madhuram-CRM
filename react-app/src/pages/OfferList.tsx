@@ -50,7 +50,9 @@ const OfferList = () => {
     const { showToast } = useToast();
     const navigate = useNavigate();
     const { user, activeRole } = useAuth();
-    const canDelete = user?.role === 'Super Admin' || activeRole?.permissions?.offers?.delete === true;
+    const canCreate = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.offers?.create === true;
+    const canEdit = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.offers?.edit === true;
+    const canDelete = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.offers?.delete === true;
 
     useEffect(() => {
         fetchOffers();
@@ -180,12 +182,14 @@ const OfferList = () => {
                             <TrashIcon size={18} className="mr-8" /> Delete ({selectedIds.length})
                         </button>
                     )}
-                    <button
-                        className="btn btn-primary"
-                        onClick={() => navigate('/offers/new')}
-                    >
-                        <PlusIcon size={18} className="mr-8" /> Create Offer
-                    </button>
+                    {canCreate && (
+                        <button
+                            className="btn btn-primary"
+                            onClick={() => navigate('/offers/new')}
+                        >
+                            <PlusIcon size={18} className="mr-8" /> Create Offer
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -287,7 +291,7 @@ const OfferList = () => {
                                 <tr 
                                     key={offer._id} 
                                     className={selectedIds.includes(offer._id) ? 'selected-row' : ''}
-                                    onDoubleClick={() => navigate(`/offers/edit/${offer._id}`)}
+                                    onDoubleClick={() => canEdit && navigate(`/offers/edit/${offer._id}`)}
                                     style={{ cursor: 'pointer' }}
                                 >
                                     {canDelete && (
@@ -335,7 +339,9 @@ const OfferList = () => {
                                     </td>
                                     <td className="sticky-last">
                                         <div className="flex-row-gap-center">
-                                            <button onClick={() => navigate(`/offers/edit/${offer._id}`)} className="action-btn" title="Edit"><EditIcon size={16} /></button>
+                                            {canEdit && (
+                                                <button onClick={() => navigate(`/offers/edit/${offer._id}`)} className="action-btn" title="Edit"><EditIcon size={16} /></button>
+                                            )}
                                             {canDelete && (
                                                 <button onClick={() => handleDelete(offer._id)} className="action-btn action-btn--delete" title="Delete"><TrashIcon size={16} /></button>
                                             )}
@@ -383,9 +389,11 @@ const OfferList = () => {
                                     </button>
                                     {activeMenu === offer._id && (
                                         <div className="user-action-menu">
-                                             <div onClick={() => navigate(`/offers/edit/${offer._id}`)} className="user-menu-item">
-                                                <EditIcon size={16} /> Edit
-                                            </div>
+                                             {canEdit && (
+                                                 <div onClick={() => navigate(`/offers/edit/${offer._id}`)} className="user-menu-item">
+                                                     <EditIcon size={16} /> Edit
+                                                 </div>
+                                             )}
                                             {canDelete && (
                                                 <div onClick={() => handleDelete(offer._id)} className="user-menu-item delete">
                                                     <TrashIcon size={16} /> Delete
@@ -409,9 +417,11 @@ const OfferList = () => {
                                     <div className="card-footer-text">
                                         ID: {offer._id.substring(0, 8)}...
                                     </div>
-                                    <button onClick={() => navigate(`/offers/edit/${offer._id}`)} className="primary-action-btn">
-                                        Manage Offer
-                                    </button>
+                                    {canEdit && (
+                                        <button onClick={() => navigate(`/offers/edit/${offer._id}`)} className="primary-action-btn">
+                                            Manage Offer
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         ))}

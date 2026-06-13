@@ -59,8 +59,8 @@ const cpUpload = upload.fields([
 // Apply authentication to all candidate routes
 router.use(authenticate);
 
-// Restricted access based on flowchart: Super Admin, Admin, Manager, Team Lead, Recruiter can access
-const allowedRoles = ["Super Admin", "Admin", "Manager", "Team Lead", "Recruiter"];
+// Restricted access based on flowchart: Super Admin, Admin, Manager, Operation Manager, Team Lead, Recruiter can access
+const allowedRoles = ["Super Admin", "Admin", "Manager", "Operation Manager", "Team Lead", "Recruiter"];
 
 router.post("/", authorize(allowedRoles), cpUpload, candidateController.createCandidate);
 router.get("/", authorize(allowedRoles), candidateController.getCandidates);

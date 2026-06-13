@@ -20,11 +20,37 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
 
     // State for submenus
     const [isUserMgmtOpen, setIsUserMgmtOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    const [companyName, setCompanyName] = useState(localStorage.getItem('companyName') || 'CRM Enterprise');
+    const [companyLogo, setCompanyLogo] = useState(localStorage.getItem('companyLogo') || '');
+
+    React.useEffect(() => {
+        const handleSettingsUpdate = () => {
+            const name = localStorage.getItem('companyName');
+            const logo = localStorage.getItem('companyLogo');
+            if (name) setCompanyName(name);
+            setCompanyLogo(logo || '');
+        };
+
+        handleSettingsUpdate();
+
+        window.addEventListener('settingsUpdated', handleSettingsUpdate);
+        window.addEventListener('storage', handleSettingsUpdate);
+
+        return () => {
+            window.removeEventListener('settingsUpdated', handleSettingsUpdate);
+            window.removeEventListener('storage', handleSettingsUpdate);
+        };
+    }, []);
 
     // Effect to auto-open if child is active
     React.useEffect(() => {
         if (['/users', '/attendance', '/leaves', '/payroll', '/roles'].some(path => location.pathname.startsWith(path))) {
             setIsUserMgmtOpen(true);
+        }
+        if (['/settings/field-management'].some(path => location.pathname.startsWith(path))) {
+            setIsSettingsOpen(true);
         }
     }, [location.pathname]);
 
@@ -70,7 +96,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         { label: 'Notifications', path: '/notifications', icon: <BellIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} /> },
         { label: 'Export/Import', path: '/import-export', icon: <DatabaseIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />, moduleKey: 'importExport' },
         { label: 'Templates', path: '/templates', icon: <FileTextIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />, moduleKey: 'settings' },
-        { label: 'Settings', path: '/settings', icon: <SettingsIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />, moduleKey: 'settings' },
+        {
+            label: 'Settings',
+            icon: <SettingsIcon size={20} color={ICON_PRIMARY} secondaryColor={ICON_SECONDARY} />,
+            isSubmenu: true,
+            isOpen: isSettingsOpen,
+            onToggle: () => setIsSettingsOpen(!isSettingsOpen),
+            children: [
+                { label: 'System Settings', path: '/settings', moduleKey: 'settings' },
+                { label: 'Field Management', path: '/settings/field-management', moduleKey: 'settings' }
+            ]
+        },
     ];
 
     const hasPermission = (moduleKey?: string) => {
@@ -119,8 +155,32 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
                 }}
             >
                 {/* Header / Logo (Fixed) */}
-                <div style={{ padding: '0 2rem 1.5rem', borderBottom: '1px solid var(--border)', marginBottom: '0.5rem' }}>
-                    <img src="/logo.png" alt="CRM Logo" style={{ maxWidth: '100%', maxHeight: '48px', objectFit: 'contain' }} />
+                <div style={{ 
+                    padding: '0 2rem 1.5rem', 
+                    borderBottom: '1px solid var(--border)', 
+                    marginBottom: '0.5rem',
+                    minHeight: '65px',
+                    display: 'flex',
+                    alignItems: 'center'
+                }}>
+                    {companyLogo ? (
+                        <img 
+                            src={companyLogo} 
+                            alt={companyName} 
+                            style={{ maxWidth: '100%', maxHeight: '48px', objectFit: 'contain' }} 
+                        />
+                    ) : (
+                        <span style={{ 
+                            fontSize: '1.25rem', 
+                            fontWeight: '800', 
+                            color: 'var(--primary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                        }}>
+                            {companyName}
+                        </span>
+                    )}
                 </div>
 
                 {/* Navigation Items (Scrollable) */}

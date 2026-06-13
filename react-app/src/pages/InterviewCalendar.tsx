@@ -34,7 +34,6 @@ const MONTHS = [
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const STAGES = ['First Round', 'Second Round', 'Third Round', 'Final Round', 'Document Pre-offer'];
 const MODES = ['Video', 'Phone', 'In Person'];
 const STATUSES = ['Pending', 'Scheduled', 'Completed', 'Selected', 'Rejected', 'On Hold'];
 const COLORS = [
@@ -96,6 +95,37 @@ const InterviewCalendar = () => {
         feedback: '',
         meetingLink: ''
     });
+
+    const [dynamicStages, setDynamicStages] = useState<string[]>(['First Round', 'Second Round', 'Third Round', 'Final Round', 'Document Pre-offer']);
+
+    useEffect(() => {
+        const fetchCandidateWorkflow = async () => {
+            if (!formData.candidateId) {
+                setDynamicStages(['First Round', 'Second Round', 'Third Round', 'Final Round', 'Document Pre-offer']);
+                return;
+            }
+            try {
+                const cand = candidates.find(c => c._id === formData.candidateId);
+                const wf = await api.resolveWorkflow({
+                    candidateId: formData.candidateId,
+                    jobId: formData.jobId || cand?.jobId?._id || cand?.jobId,
+                    companyName: cand?.currentCompany || '',
+                    category: cand?.sector || ''
+                });
+                if (wf && wf.stages) {
+                    const stagesList = wf.stages.filter((s: any) => s.isEnabled && !s.isArchived).map((s: any) => s.name);
+                    setDynamicStages(stagesList);
+                    if (stagesList.length > 0 && !stagesList.includes(formData.stage)) {
+                        setFormData(prev => ({ ...prev, stage: stagesList[0] }));
+                    }
+                }
+            } catch (error) {
+                console.error("Failed to load candidate workflow stages:", error);
+            }
+        };
+
+        fetchCandidateWorkflow();
+    }, [formData.candidateId, candidates]);
 
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
@@ -1325,7 +1355,7 @@ const InterviewCalendar = () => {
                             value={formData.stage}
                             onChange={(e) => setFormData({ ...formData, stage: e.target.value })}
                         >
-                            {STAGES.map(stg => <option key={stg} value={stg}>{stg}</option>)}
+                            {dynamicStages.map(stg => <option key={stg} value={stg}>{stg}</option>)}
                         </select>
                     </div>
 

@@ -147,7 +147,11 @@ const CandidateList = () => {
         sector: ['BFSI', 'Insurance', 'Banking', 'Other'],
         qualification: ['Graduate', 'Post Graduate', 'MBA', 'Other'],
         channel: ['Banca', 'Agency', 'Direct', 'Other'],
-        location: []
+        location: [],
+        leadTag: [],
+        recruitmentStatus: [],
+        jobTitle: [],
+        assessmentStatus: []
     });
 
     useEffect(() => {
@@ -181,10 +185,10 @@ const CandidateList = () => {
             noticePeriod: new Set(dynamicOptions.noticePeriod || []),
             sector: new Set(dynamicOptions.sector || []),
             location: new Set(dynamicOptions.location || []),
-            status: new Set(['Applied', 'Ph Screening', 'Interview', 'Offered', 'Hired', 'Rejected', 'Hold']),
+            status: new Set(dynamicOptions.recruitmentStatus && dynamicOptions.recruitmentStatus.length > 0 ? dynamicOptions.recruitmentStatus : ['Applied', 'Shortlisted', 'Interviewed', 'Offered', 'Rejected', 'Joined']),
             gender: new Set(['Male', 'Female', 'Other']),
             channel: new Set(dynamicOptions.channel || []),
-            assessment: new Set(['Clear', 'Not Clear', 'Pending']),
+            assessment: new Set(dynamicOptions.assessmentStatus && dynamicOptions.assessmentStatus.length > 0 ? dynamicOptions.assessmentStatus : ['Clear', 'Not Clear', 'Pending']),
             qualification: new Set(dynamicOptions.qualification || [])
         };
 
@@ -222,19 +226,19 @@ const CandidateList = () => {
             clearTimeout(hoverTimeoutRef.current);
             hoverTimeoutRef.current = null;
         }
-        
+
         const rect = e.currentTarget.getBoundingClientRect();
         const scrollY = window.scrollY || window.pageYOffset;
         const scrollX = window.scrollX || window.pageXOffset;
-        
+
         let left = rect.left + scrollX;
         if (rect.left + 320 > window.innerWidth) {
             left = window.innerWidth - 340 + scrollX;
             if (left < 0) left = 10;
         }
-        
+
         let top = rect.bottom + scrollY + 4;
-        
+
         setHoverPosition({ top, left });
         setHoveredCandidate(candidate);
     };
@@ -401,8 +405,10 @@ const CandidateList = () => {
         );
     };
 
-    const canDelete = user?.role === 'Super Admin' || activeRole?.permissions?.candidates?.delete === true;
-    const canAssignToOperation = user?.role === 'Super Admin' || user?.role === 'Admin' || user?.role === 'Manager' || activeRole?.permissions?.operations?.create === true;
+    const canCreate = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.candidates?.create === true;
+    const canEdit = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.candidates?.edit === true;
+    const canDelete = user?.role === 'Super Admin' || user?.role === 'Admin' || activeRole?.permissions?.candidates?.delete === true;
+    const canAssignToOperation = user?.role !== 'Normal User';
     const [isColumnPanelOpen, setIsColumnPanelOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
@@ -508,12 +514,12 @@ const CandidateList = () => {
 
     const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
         const saved = localStorage.getItem('candidate_column_widths');
-        return saved ? JSON.parse(saved) : { 
-            name: 250, 
+        return saved ? JSON.parse(saved) : {
+            name: 250,
             aiScore: 100,
-            email: 220, 
-            phone: 150, 
-            designation: 180, 
+            email: 220,
+            phone: 150,
+            designation: 180,
             currentCompany: 180,
             location: 150,
             status: 160,
@@ -678,7 +684,7 @@ const CandidateList = () => {
             setVisibleColumns(uniqueVisible);
             return;
         }
-        
+
         // Save to localStorage
         localStorage.setItem('candidate_column_order', JSON.stringify(columnOrder));
         localStorage.setItem('candidate_visible_columns', JSON.stringify(visibleColumns));
@@ -702,7 +708,7 @@ const CandidateList = () => {
         e.dataTransfer.setData('colKey', colKey);
         e.dataTransfer.setData('text/plain', colKey); // Fallback
         e.dataTransfer.effectAllowed = 'move';
-        
+
         // Add a class for styling
         const target = e.currentTarget as HTMLElement;
         target.classList.add('dragging');
@@ -827,15 +833,15 @@ const CandidateList = () => {
         if (colKey === 'name') {
             const initials = candidate.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
             const photoUrl = candidate.photograph?.fileUrl ? (candidate.photograph.fileUrl.startsWith('http') ? candidate.photograph.fileUrl : `${BASE_URL}${candidate.photograph.fileUrl}`) : null;
-            
+
             return (
                 <div className="candidate-name-cell">
                     <div className="candidate-avatar-mini">
                         {photoUrl ? <img src={photoUrl} className="candidate-avatar-img" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" /> : initials}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                        <span 
-                            className="candidate-name-link" 
+                        <span
+                            className="candidate-name-link"
                             onClick={() => handleOpenProfile(candidate._id)}
                             onMouseEnter={(e) => handleNameMouseEnter(e, candidate)}
                             onMouseLeave={handleNameMouseLeave}
@@ -847,14 +853,14 @@ const CandidateList = () => {
                         </span>
                     </div>
                     <div className="candidate-cell-actions">
-                        <button 
+                        <button
                             className="candidate-cell-action-btn"
                             onClick={(e) => { e.stopPropagation(); setViewingCandidate(candidate); }}
                             title="Quick View"
                         >
                             <EyeIcon size={14} />
                         </button>
-                        <button 
+                        <button
                             className="candidate-cell-action-btn"
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -883,6 +889,7 @@ const CandidateList = () => {
                     value={currentVal}
                     onChange={(e) => handleUpdateStatus(candidate._id, 'leads', e.target.value)}
                     className={`candidate-lead-select ${isHot ? 'candidate-lead-select--hot' : 'candidate-lead-select--warm'}`}
+                    disabled={!canEdit}
                 >
                     {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
@@ -896,13 +903,14 @@ const CandidateList = () => {
                     onChange={(e) => handleUpdateStatus(candidate._id, 'assessment', e.target.value)}
                     className="candidate-status-select"
                     style={{ color: getStatusColor(currentVal) }}
+                    disabled={!canEdit}
                 >
                     {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                 </select>
             );
         } else if (colKey === 'status') {
             return (
-                <div className="status-badge" style={{ 
+                <div className="status-badge" style={{
                     backgroundColor: getStatusColor(candidate.recruitmentStatus) + '15',
                     color: getStatusColor(candidate.recruitmentStatus),
                     borderColor: getStatusColor(candidate.recruitmentStatus) + '30'
@@ -935,15 +943,15 @@ const CandidateList = () => {
             const cleanPhone = phone.replace(/\D/g, '');
             return (
                 <div className="candidate-table-cell-text">
-                    <a 
-                        href={`https://wa.me/${cleanPhone}`} 
-                        target="_blank" 
+                    <a
+                        href={`https://wa.me/${cleanPhone}`}
+                        target="_blank"
                         rel="noreferrer"
-                        style={{ 
-                            display: 'inline-flex', 
-                            alignItems: 'center', 
-                            gap: '6px', 
-                            color: '#25D366', 
+                        style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            color: '#25D366',
                             textDecoration: 'none',
                             fontWeight: 500,
                             padding: '2px 8px',
@@ -961,8 +969,8 @@ const CandidateList = () => {
             const color = score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#ef4444';
             return (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ 
-                        width: '32px', height: '32px', borderRadius: '50%', 
+                    <div style={{
+                        width: '32px', height: '32px', borderRadius: '50%',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         border: `2px solid ${color}`, fontSize: '0.7rem', fontWeight: 'bold', color
                     }}>
@@ -1005,8 +1013,8 @@ const CandidateList = () => {
     };
 
     const activeVisibleColumns = useMemo(() => {
-        const order = columnOrder.filter(key => 
-            visibleColumns.includes(key) && 
+        const order = columnOrder.filter(key =>
+            visibleColumns.includes(key) &&
             ALL_COLUMNS.some(c => c.key === key)
         );
         return order;
@@ -1399,7 +1407,7 @@ const CandidateList = () => {
                         Lead
                     </button>
                 </div>
-                
+
                 {(activeTab === 'Candidate' || activeTab === 'Lead') && (
                     <div className="header-actions">
                         <span className="total-badge" style={{ marginRight: '0.5rem' }}>
@@ -1478,14 +1486,16 @@ const CandidateList = () => {
                                 <MailIcon size={18} />
                             </button>
                         </Tooltip>
-                        <Tooltip text="Add New Candidate">
-                            <button
-                                className="action-btn primary"
-                                onClick={handleAddNew}
-                            >
-                                <PlusIcon size={18} />
-                            </button>
-                        </Tooltip>
+                        {canCreate && (
+                            <Tooltip text="Add New Candidate">
+                                <button
+                                    className="action-btn primary"
+                                    onClick={handleAddNew}
+                                >
+                                    <PlusIcon size={18} />
+                                </button>
+                            </Tooltip>
+                        )}
                         <div className="advanced-filters-wrapper">
                             <div className="relative-pos" ref={filterPopoverRef}>
                                 <button
@@ -1526,79 +1536,79 @@ const CandidateList = () => {
                         </div>
                     )}
 
-                                    {isFilterPopoverOpen && (
-                                        <div className="filter-popover">
-                                        <div className="filter-popover-header">
-                                            <span className="filter-popover-title">Advanced Filters</span>
-                                            <button onClick={() => setFilters([])} className="filter-clear-all">Clear All</button>
+                    {isFilterPopoverOpen && (
+                        <div className="filter-popover">
+                            <div className="filter-popover-header">
+                                <span className="filter-popover-title">Advanced Filters</span>
+                                <button onClick={() => setFilters([])} className="filter-clear-all">Clear All</button>
+                            </div>
+                            <div className="filter-scroll custom-scrollbar filter-popover-content">
+                                {filterStep === 'fields' ? (
+                                    <>
+                                        <div className="filter-popover-section">
+                                            <input
+                                                type="text"
+                                                className="input-field filter-search-input"
+                                                placeholder="Search fields..."
+                                                value={filterSearchQuery}
+                                                onChange={(e) => setFilterSearchQuery(e.target.value)}
+                                                autoFocus
+                                            />
                                         </div>
-                                        <div className="filter-scroll custom-scrollbar filter-popover-content">
-                                            {filterStep === 'fields' ? (
-                                                <>
-                                                    <div className="filter-popover-section">
-                                                        <input
-                                                            type="text"
-                                                            className="input-field filter-search-input"
-                                                            placeholder="Search fields..."
-                                                            value={filterSearchQuery}
-                                                            onChange={(e) => setFilterSearchQuery(e.target.value)}
-                                                            autoFocus
-                                                        />
-                                                    </div>
-                                                    <div className="filter-groups">
-                                                        {FIELD_GROUPS.map(group => {
-                                                            const filteredKeys = group.keys.filter(key =>
-                                                                getFieldLabel(key).toLowerCase().includes(filterSearchQuery.toLowerCase())
-                                                            );
-                                                            if (filteredKeys.length === 0) return null;
-                                                            return (
-                                                                <div key={group.name}>
-                                                                    <div onClick={() => toggleGroup(group.name)} className="filter-group-header">
-                                                                        {group.name}
-                                                                        <ChevronDownIcon size={12} className={expandedGroups.includes(group.name) ? 'filter-expanded-icon' : ''} />
-                                                                    </div>
-                                                                    {expandedGroups.includes(group.name) && filteredKeys.map(key => (
-                                                                        <div key={key} onClick={() => { setSelectedField(key); setFilterStep('condition'); }} className="filter-field-item hover-bg">
-                                                                            {getFieldLabel(key)}
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="filter-popover-section--full">
-                                                    <div className="filter-back-btn" onClick={() => setFilterStep('fields')}>
-                                                        <ChevronDownIcon size={14} className="filter-back-icon" />
-                                                        Back to fields
-                                                    </div>
-                                                    <div className="filter-field-title">{getFieldLabel(selectedField!)}</div>
-                                                    <select
-                                                        className="input-field filter-input-mb"
-                                                        value={selectedOperator}
-                                                        onChange={(e) => setSelectedOperator(e.target.value)}
-                                                    >
-                                                        {(getFieldType(selectedField!) === 'date' ? DATE_OPERATORS : (getFieldType(selectedField!) === 'select' ? SELECT_OPERATORS : TEXT_OPERATORS)).map(op => (
-                                                            <option key={op} value={op}>{op}</option>
+                                        <div className="filter-groups">
+                                            {FIELD_GROUPS.map(group => {
+                                                const filteredKeys = group.keys.filter(key =>
+                                                    getFieldLabel(key).toLowerCase().includes(filterSearchQuery.toLowerCase())
+                                                );
+                                                if (filteredKeys.length === 0) return null;
+                                                return (
+                                                    <div key={group.name}>
+                                                        <div onClick={() => toggleGroup(group.name)} className="filter-group-header">
+                                                            {group.name}
+                                                            <ChevronDownIcon size={12} className={expandedGroups.includes(group.name) ? 'filter-expanded-icon' : ''} />
+                                                        </div>
+                                                        {expandedGroups.includes(group.name) && filteredKeys.map(key => (
+                                                            <div key={key} onClick={() => { setSelectedField(key); setFilterStep('condition'); }} className="filter-field-item hover-bg">
+                                                                {getFieldLabel(key)}
+                                                            </div>
                                                         ))}
-                                                    </select>
-                                                    {!['has any value', 'is empty'].includes(selectedOperator) && (
-                                                        <input
-                                                            type={getFieldType(selectedField!) === 'date' ? 'date' : 'text'}
-                                                            className="input-field filter-input-mb"
-                                                            placeholder="Value"
-                                                            value={tempFilterValue}
-                                                            onChange={(e) => setTempFilterValue(e.target.value)}
-                                                        />
-                                                    )}
-                                                    <button className="btn btn-primary full-width" onClick={addFilter}>Update</button>
-                                                </div>
-                                            )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
+                                    </>
+                                ) : (
+                                    <div className="filter-popover-section--full">
+                                        <div className="filter-back-btn" onClick={() => setFilterStep('fields')}>
+                                            <ChevronDownIcon size={14} className="filter-back-icon" />
+                                            Back to fields
+                                        </div>
+                                        <div className="filter-field-title">{getFieldLabel(selectedField!)}</div>
+                                        <select
+                                            className="input-field filter-input-mb"
+                                            value={selectedOperator}
+                                            onChange={(e) => setSelectedOperator(e.target.value)}
+                                        >
+                                            {(getFieldType(selectedField!) === 'date' ? DATE_OPERATORS : (getFieldType(selectedField!) === 'select' ? SELECT_OPERATORS : TEXT_OPERATORS)).map(op => (
+                                                <option key={op} value={op}>{op}</option>
+                                            ))}
+                                        </select>
+                                        {!['has any value', 'is empty'].includes(selectedOperator) && (
+                                            <input
+                                                type={getFieldType(selectedField!) === 'date' ? 'date' : 'text'}
+                                                className="input-field filter-input-mb"
+                                                placeholder="Value"
+                                                value={tempFilterValue}
+                                                onChange={(e) => setTempFilterValue(e.target.value)}
+                                            />
+                                        )}
+                                        <button className="btn btn-primary full-width" onClick={addFilter}>Update</button>
                                     </div>
                                 )}
-                                <div className="candidate-list-content">
+                            </div>
+                        </div>
+                    )}
+                    <div className="candidate-list-content">
                         {loading ? (
                             <div className="loading-container">Loading candidates...</div>
                         ) : (
@@ -1775,9 +1785,9 @@ const CandidateList = () => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                     <div className="candidate-avatar-initial">
                                                         {candidate.photograph?.fileUrl ? (
-                                                            <img 
-                                                                src={candidate.photograph.fileUrl.startsWith('http') ? candidate.photograph.fileUrl : `${BASE_URL}${candidate.photograph.fileUrl}`} 
-                                                                alt={candidate.name} 
+                                                            <img
+                                                                src={candidate.photograph.fileUrl.startsWith('http') ? candidate.photograph.fileUrl : `${BASE_URL}${candidate.photograph.fileUrl}`}
+                                                                alt={candidate.name}
                                                                 className="candidate-avatar-img"
                                                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                             />
@@ -1835,9 +1845,11 @@ const CandidateList = () => {
                                                     <button onClick={(e) => { e.stopPropagation(); setViewingCandidate(candidate); }} className="card-action-btn view" title="View Details">
                                                         <EyeIcon size={18} />
                                                     </button>
-                                                    <button onClick={(e) => { e.stopPropagation(); navigate(`/candidates/edit/${candidate._id}`); }} className="card-action-btn edit" title="Edit Candidate">
-                                                        <EditIcon size={18} />
-                                                    </button>
+                                                    {canEdit && (
+                                                        <button onClick={(e) => { e.stopPropagation(); navigate(`/candidates/edit/${candidate._id}`); }} className="card-action-btn edit" title="Edit Candidate">
+                                                            <EditIcon size={18} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -2211,7 +2223,7 @@ const CandidateList = () => {
                             <div className="input-group">
                                 <label className="input-label">Date Filed</label>
                                 <input
-                                    type="date" 
+                                    type="date"
                                     className="input-field"
                                     value={operationFormData.filedDate}
                                     onChange={e => setOperationFormData({ ...operationFormData, filedDate: e.target.value })}
@@ -2219,7 +2231,7 @@ const CandidateList = () => {
                             </div>
                         </div>
 
-                         {/* Tickets Management Section (Added to match user request) */}
+                        {/* Tickets Management Section (Added to match user request) */}
                         <div className="report-section-box mb-24" style={{ padding: '1rem', border: '1px solid #e2e8f0', borderRadius: '12px' }}>
                             <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', marginBottom: '1rem', borderLeft: '4px solid var(--primary)', paddingLeft: '12px' }}>
                                 Tickets Management
@@ -2479,11 +2491,11 @@ const CandidateList = () => {
 
             {/* Hover Card Portal */}
             {hoveredCandidate && hoverPosition && (() => {
-                const photoUrl = hoveredCandidate.photograph?.fileUrl 
-                    ? (hoveredCandidate.photograph.fileUrl.startsWith('http') ? hoveredCandidate.photograph.fileUrl : `${BASE_URL}${hoveredCandidate.photograph.fileUrl}`) 
+                const photoUrl = hoveredCandidate.photograph?.fileUrl
+                    ? (hoveredCandidate.photograph.fileUrl.startsWith('http') ? hoveredCandidate.photograph.fileUrl : `${BASE_URL}${hoveredCandidate.photograph.fileUrl}`)
                     : null;
                 const initials = hoveredCandidate.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-                
+
                 return createPortal(
                     <div
                         className={`candidate-hover-card portal ${hoverPlacement}`}
@@ -2500,9 +2512,9 @@ const CandidateList = () => {
                         <div className="hover-card-main-row">
                             <div className="hover-card-avatar-large">
                                 {photoUrl ? (
-                                    <img 
-                                        src={photoUrl} 
-                                        alt="" 
+                                    <img
+                                        src={photoUrl}
+                                        alt=""
                                     />
                                 ) : (
                                     initials
@@ -2513,7 +2525,7 @@ const CandidateList = () => {
                                     <div className="hover-card-name" title={hoveredCandidate.name}>
                                         {hoveredCandidate.name}
                                     </div>
-                                    <button 
+                                    <button
                                         className="hover-card-add-btn"
                                         title="Edit Candidate"
                                         onClick={() => {
@@ -2531,10 +2543,10 @@ const CandidateList = () => {
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div className="hover-card-actions-row">
                             {hoveredCandidate.email ? (
-                                <button 
+                                <button
                                     className="hover-card-mail-btn"
                                     onClick={() => {
                                         setSelectedIds([hoveredCandidate._id]);
@@ -2551,8 +2563,8 @@ const CandidateList = () => {
                                 <div style={{ width: '1px' }}></div>
                             )}
                             <div className="hover-card-icon-buttons">
-                                <button 
-                                    className="hover-card-circle-btn" 
+                                <button
+                                    className="hover-card-circle-btn"
                                     title="Chat on WhatsApp"
                                     onClick={() => {
                                         const phone = hoveredCandidate.whatsapp || hoveredCandidate.phone;
@@ -2567,8 +2579,8 @@ const CandidateList = () => {
                                 >
                                     <MessageIcon size={16} />
                                 </button>
-                                <button 
-                                    className="hover-card-circle-btn" 
+                                <button
+                                    className="hover-card-circle-btn"
                                     title="Schedule Video Interview"
                                     onClick={() => {
                                         setSelectedProfileId(hoveredCandidate._id);
@@ -2580,8 +2592,8 @@ const CandidateList = () => {
                                 >
                                     <VideoIcon size={16} />
                                 </button>
-                                <button 
-                                    className="hover-card-circle-btn" 
+                                <button
+                                    className="hover-card-circle-btn"
                                     title="Schedule Meeting/Interview"
                                     onClick={() => {
                                         setSelectedProfileId(hoveredCandidate._id);
@@ -2599,7 +2611,7 @@ const CandidateList = () => {
                     document.body
                 );
             })()}
-             {/* Column Customization Drawer */}
+            {/* Column Customization Drawer */}
             <Drawer
                 isOpen={isColumnPanelOpen}
                 onClose={() => setIsColumnPanelOpen(false)}
@@ -2608,13 +2620,13 @@ const CandidateList = () => {
             >
                 <div className="column-customization-drawer">
                     <p className="panel-hint">Configure visibility and order of columns in the ATS table.</p>
-                    
+
                     <div className="drawer-actions mb-16">
                         <div className="search-box-modern" style={{ width: '100%' }}>
                             <SearchIcon className="search-icon" size={16} />
-                            <input 
-                                type="text" 
-                                placeholder="Search columns..." 
+                            <input
+                                type="text"
+                                placeholder="Search columns..."
                                 className="search-input"
                                 value={columnSearchQuery}
                                 onChange={(e) => setColumnSearchQuery(e.target.value)}
@@ -2626,7 +2638,7 @@ const CandidateList = () => {
                             {columnOrder.map(colKey => {
                                 const col = ALL_COLUMNS.find(c => c.key === colKey);
                                 if (!col) return null;
-                                
+
                                 // Search filter
                                 if (columnSearchQuery && !col.label.toLowerCase().includes(columnSearchQuery.toLowerCase())) {
                                     return null;
@@ -2716,8 +2728,8 @@ const CandidateList = () => {
                             flexDirection: 'column'
                         }}
                     >
-                        <div 
-                            className="menu-item" 
+                        <div
+                            className="menu-item"
                             onClick={() => setHeaderMenu(prev => ({ ...prev!, submenu: prev?.submenu === 'pin' ? undefined : 'pin' }))}
                             onMouseEnter={() => setHeaderMenu(prev => ({ ...prev!, submenu: 'pin' }))}
                             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', transition: 'background 0.2s', background: headerMenu.submenu === 'pin' ? '#f1f5f9' : 'transparent', position: 'relative' }}
@@ -2757,9 +2769,9 @@ const CandidateList = () => {
                             </div>
                         )}
                         {sortConfig?.key === headerMenu.key && (
-                            <div 
-                                className="menu-item" 
-                                onClick={() => { handleSort(headerMenu.key, null); setHeaderMenu(null); }} 
+                            <div
+                                className="menu-item"
+                                onClick={() => { handleSort(headerMenu.key, null); setHeaderMenu(null); }}
                                 onMouseEnter={() => setHeaderMenu(prev => ({ ...prev!, submenu: undefined }))}
                                 style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px' }}
                             >
@@ -2767,18 +2779,18 @@ const CandidateList = () => {
                                 <span style={{ fontSize: '0.875rem' }}>Clear Sort</span>
                             </div>
                         )}
-                        <div 
-                            className="menu-item" 
-                            onClick={() => { handleSort(headerMenu.key, 'asc'); setHeaderMenu(null); }} 
+                        <div
+                            className="menu-item"
+                            onClick={() => { handleSort(headerMenu.key, 'asc'); setHeaderMenu(null); }}
                             onMouseEnter={() => setHeaderMenu(prev => ({ ...prev!, submenu: undefined }))}
                             style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px' }}
                         >
                             <div style={{ fontSize: '16px', width: '16px', textAlign: 'center' }}>↑<span style={{ fontSize: '8px' }}>AZ</span></div>
                             <span style={{ fontSize: '0.875rem' }}>Sort Ascending</span>
                         </div>
-                        <div 
-                            className="menu-item" 
-                            onClick={() => { handleSort(headerMenu.key, 'desc'); setHeaderMenu(null); }} 
+                        <div
+                            className="menu-item"
+                            onClick={() => { handleSort(headerMenu.key, 'desc'); setHeaderMenu(null); }}
                             onMouseEnter={() => setHeaderMenu(prev => ({ ...prev!, submenu: undefined }))}
                             style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px' }}
                         >
@@ -2786,9 +2798,9 @@ const CandidateList = () => {
                             <span style={{ fontSize: '0.875rem' }}>Sort Descending</span>
                         </div>
                         <div className="menu-divider" style={{ height: '1px', background: '#f1f5f9', margin: '4px 0' }} />
-                        <div 
-                            className="menu-item" 
-                            onClick={() => { setVisibleColumns(prev => prev.filter(k => k !== headerMenu.key)); setHeaderMenu(null); }} 
+                        <div
+                            className="menu-item"
+                            onClick={() => { setVisibleColumns(prev => prev.filter(k => k !== headerMenu.key)); setHeaderMenu(null); }}
                             onMouseEnter={() => setHeaderMenu(prev => ({ ...prev!, submenu: undefined }))}
                             style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', color: '#94a3b8' }}
                         >
@@ -2858,7 +2870,7 @@ const CandidateList = () => {
                             <div
                                 key={col.key}
                                 className="menu-item"
-                                onClick={() => { 
+                                onClick={() => {
                                     const k = col.key;
                                     const newOrder = [...columnOrder];
                                     const currentVisible = [...visibleColumns];
@@ -2870,7 +2882,7 @@ const CandidateList = () => {
                                     }
                                     setColumnOrder(newOrder);
                                     setVisibleColumns(currentVisible);
-                                    setColumnSearchQuery(''); 
+                                    setColumnSearchQuery('');
                                 }}
                                 style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.85rem' }}
                             >
@@ -2917,10 +2929,12 @@ const CandidateList = () => {
                         overflow: 'visible'
                     }}
                 >
-                    <div className="menu-item" onClick={() => { handleEditCandidate(rowMenu.candidate._id); setRowMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem', fontWeight: '500' }}>
-                        <EditIcon size={16} color="#64748b" />
-                        <span>Edit Candidate</span>
-                    </div>
+                    {canEdit && (
+                        <div className="menu-item" onClick={() => { handleEditCandidate(rowMenu.candidate._id); setRowMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem', fontWeight: '500' }}>
+                            <EditIcon size={16} color="#64748b" />
+                            <span>Edit Candidate</span>
+                        </div>
+                    )}
                     <div className="menu-item" onClick={() => { setSelectedProfileId(rowMenu.candidate._id); setSelectedActivityModal('Note'); setIsProfileDrawerOpen(true); setRowMenu(null); }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem' }}>
                         <FileTextIcon size={16} color="#64748b" />
                         <span>Add Note</span>
@@ -2933,18 +2947,18 @@ const CandidateList = () => {
                         <CalendarIcon size={16} color="#64748b" />
                         <span>Schedule Interview</span>
                     </div>
-                    <div className="menu-item" onClick={() => { 
+                    <div className="menu-item" onClick={() => {
                         const phone = rowMenu.candidate.whatsapp || rowMenu.candidate.phone;
                         if (phone) window.open(`https://wa.me/${phone.replace(/\D/g, '')}`, '_blank');
-                        setRowMenu(null); 
+                        setRowMenu(null);
                     }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem' }}>
                         <WhatsappIcon size={16} color="#25D366" />
                         <span>Send WhatsApp</span>
                     </div>
-                    <div className="menu-item" onClick={() => { 
+                    <div className="menu-item" onClick={() => {
                         setSelectedIds([rowMenu.candidate._id]);
                         setIsEmailModalOpen(true);
-                        setRowMenu(null); 
+                        setRowMenu(null);
                     }} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', borderRadius: '4px', fontSize: '0.875rem' }}>
                         <MailIcon size={16} color="#64748b" />
                         <span>Send Email</span>
@@ -2954,7 +2968,7 @@ const CandidateList = () => {
                         <span>Switch Candidate</span>
                     </div>
                     {canAssignToOperation && (
-                        <div 
+                        <div
                             className="menu-item"
                             onMouseEnter={() => setHoveredMenuItem('assign_to_operation')}
                             onMouseLeave={() => setHoveredMenuItem(null)}
@@ -2962,14 +2976,14 @@ const CandidateList = () => {
                                 e.stopPropagation();
                                 setHoveredMenuItem(prev => prev === 'assign_to_operation' ? null : 'assign_to_operation');
                             }}
-                            style={{ 
-                                display: 'flex', 
-                                alignItems: 'center', 
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
                                 justifyContent: 'space-between',
-                                gap: '10px', 
-                                padding: '10px 12px', 
-                                cursor: 'pointer', 
-                                borderRadius: '4px', 
+                                gap: '10px',
+                                padding: '10px 12px',
+                                cursor: 'pointer',
+                                borderRadius: '4px',
                                 fontSize: '0.875rem',
                                 position: 'relative',
                                 background: hoveredMenuItem === 'assign_to_operation' ? '#f8fafc' : 'transparent'
@@ -2980,11 +2994,11 @@ const CandidateList = () => {
                                 <span>Assign to Operation</span>
                             </div>
                             <span style={{ fontSize: '8px', color: '#64748b' }}>▶</span>
-                            
+
                             {/* Hover Submenu */}
                             {hoveredMenuItem === 'assign_to_operation' && (
-                                <div 
-                                    className="row-actions-container" 
+                                <div
+                                    className="row-actions-container"
                                     style={{
                                         position: 'absolute',
                                         left: '100%',
@@ -3003,18 +3017,18 @@ const CandidateList = () => {
                                     {users
                                         .filter(u => u.status === 'Active' && u.role === 'Operation Manager')
                                         .map(u => (
-                                            <div 
-                                                key={u._id} 
-                                                className="menu-item" 
-                                                onClick={(e) => { 
-                                                    e.stopPropagation(); 
-                                                    handleAssignToOperationManager(rowMenu.candidate._id, u._id); 
-                                                    setRowMenu(null); 
+                                            <div
+                                                key={u._id}
+                                                className="menu-item"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleAssignToOperationManager(rowMenu.candidate._id, u._id);
+                                                    setRowMenu(null);
                                                 }}
-                                                style={{ 
-                                                    padding: '10px 12px', 
-                                                    cursor: 'pointer', 
-                                                    borderRadius: '4px', 
+                                                style={{
+                                                    padding: '10px 12px',
+                                                    cursor: 'pointer',
+                                                    borderRadius: '4px',
                                                     fontSize: '0.875rem',
                                                     display: 'flex',
                                                     alignItems: 'center',

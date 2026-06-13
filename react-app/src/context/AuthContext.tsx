@@ -90,6 +90,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (data) {
         await fetchActiveRole(data);
+        // Fetch public settings for logo and company name
+        try {
+          const publicData = await api.getPublicSettings();
+          if (publicData && publicData.general) {
+            if (publicData.general.companyName) {
+              localStorage.setItem('companyName', publicData.general.companyName);
+            }
+            if (publicData.general.companyLogo) {
+              localStorage.setItem('companyLogo', publicData.general.companyLogo);
+            } else {
+              localStorage.removeItem('companyLogo');
+            }
+            if (publicData.general.dateFormat) {
+              localStorage.setItem('dateFormat', publicData.general.dateFormat);
+            }
+            window.dispatchEvent(new Event('settingsUpdated'));
+          }
+        } catch (pubError) {
+          console.error('Error fetching public settings on login:', pubError);
+        }
       }
 
       try {
@@ -112,6 +132,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(data);
       localStorage.setItem('user', JSON.stringify(data));
       await fetchActiveRole(data);
+
+      // Fetch public settings for logo and company name
+      try {
+        const publicData = await api.getPublicSettings();
+        if (publicData && publicData.general) {
+          if (publicData.general.companyName) {
+            localStorage.setItem('companyName', publicData.general.companyName);
+          }
+          if (publicData.general.companyLogo) {
+            localStorage.setItem('companyLogo', publicData.general.companyLogo);
+          } else {
+            localStorage.removeItem('companyLogo');
+          }
+          if (publicData.general.dateFormat) {
+            localStorage.setItem('dateFormat', publicData.general.dateFormat);
+          }
+          window.dispatchEvent(new Event('settingsUpdated'));
+        }
+      } catch (pubError) {
+        console.error('Error fetching public settings on registration:', pubError);
+      }
     } catch (error) {
       console.error('Registration error:', error);
       throw error;

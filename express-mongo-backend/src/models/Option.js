@@ -5,7 +5,11 @@ const optionSchema = new mongoose.Schema(
         category: {
             type: String,
             required: true,
-            enum: ['currentCompany', 'currentProfile', 'designation', 'sector', 'channel', 'ticketCompany', 'ticketType', 'qualification', 'noticePeriod'],
+            enum: [
+                'currentCompany', 'currentProfile', 'designation', 'sector', 'channel', 
+                'ticketCompany', 'ticketType', 'qualification', 'noticePeriod',
+                'leadTag', 'recruitmentStatus', 'jobTitle', 'assessmentStatus'
+            ],
             trim: true
         },
         value: {

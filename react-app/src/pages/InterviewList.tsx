@@ -288,29 +288,23 @@ const InterviewList = () => {
 
         switch (stepId) {
             case 'applied':
-                updates = { status: 'Applied' };
+                updates = { status: 'Applied', stage: label };
                 break;
             case 'scheduled':
-                updates = { status: 'Scheduled' };
+                updates = { status: 'Scheduled', stage: label };
                 break;
             case 'interview_done':
-                updates = { status: 'Completed' };
+                updates = { status: 'Completed', stage: label };
                 break;
             case 'short_list':
             case 'shortlist':
-                updates = { status: 'Shortlisted', shortlisted: 'Yes' };
+                updates = { status: 'Shortlisted', shortlisted: 'Yes', stage: label };
                 break;
             case 'first_round':
-                updates = { stage: 'First Round' };
-                break;
             case 'second_round':
-                updates = { stage: 'Second Round' };
-                break;
             case 'final_round':
-                updates = { stage: 'Final Round' };
-                break;
             case 'document':
-                updates = { stage: 'Document Pre-offer' };
+                updates = { stage: label };
                 break;
             case 'hire':
                 updates = { status: 'Selected', offers: 'Yes' };

@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XCircleIcon, CheckIcon, FileTextIcon, EyeIcon } from '../icons';
-import { BASE_URL } from '../services/api';
+import { BASE_URL, api } from '../services/api';
 
 interface Candidate {
     _id: string;
@@ -33,26 +33,85 @@ interface ScheduleProgressProps {
 const ScheduleProgress: React.FC<ScheduleProgressProps> = ({ interview, onStepClick }) => {
     const candidate = interview.candidateId;
     const [resignStatus, setResignStatus] = useState(candidate?.isResigned || 'No');
+    const [steps, setSteps] = useState<{ id: string; label: string }[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const steps = [
-        { id: 'applied', label: 'Applied' },
-        { id: 'scheduled', label: 'Scheduled' },
-        { id: 'interview_done', label: 'Interview Done' },
-        { id: 'short_list', label: 'Short-List' },
-        { id: 'first_round', label: 'First Round' },
-        { id: 'second_round', label: 'Second Round' },
-        { id: 'final_round', label: 'Final Round' },
-        { id: 'document', label: 'Document Pre-offer' }
-    ];
+    useEffect(() => {
+        const loadWorkflow = async () => {
+            try {
+                const resolved = await api.resolveWorkflow({ candidateId: candidate?._id });
+                if (resolved && resolved.stages) {
+                    const activeStages = resolved.stages
+                        .filter((s: any) => s.isEnabled && !s.isArchived)
+                        .map((s: any) => ({
+                            id: s.name.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                            label: s.name
+                        }));
+                    setSteps(activeStages);
+                } else {
+                    throw new Error("No stages found");
+                }
+            } catch (err) {
+                console.error("Failed to load workflow", err);
+                // Fallback to standard default steps
+                setSteps([
+                    { id: 'applied', label: 'Applied' },
+                    { id: 'scheduled', label: 'Scheduled' },
+                    { id: 'interview_done', label: 'Interview Done' },
+                    { id: 'short_list', label: 'Short-List' },
+                    { id: 'first_round', label: 'First Round' },
+                    { id: 'second_round', label: 'Second Round' },
+                    { id: 'final_round', label: 'Final Round' },
+                    { id: 'document', label: 'Document Pre-offer' }
+                ]);
+            } finally {
+                setLoading(false);
+            }
+        };
+        if (candidate?._id) {
+            loadWorkflow();
+        } else {
+            setLoading(false);
+        }
+    }, [candidate?._id]);
 
     const getCurrentStepIndex = () => {
-        if (interview.stage === 'Document Pre-offer' || interview.offers === 'Yes') return 7;
-        if (interview.stage === 'Final Round') return 6;
-        if (interview.stage === 'Second Round') return 5;
-        if (interview.stage === 'First Round') return 4;
-        if (interview.shortlisted === 'Yes' || interview.stage === 'Short-List' || interview.status === 'Shortlisted') return 3;
-        if (interview.status === 'Completed' || interview.status === 'Interview Done') return 2;
-        if (interview.status === 'Scheduled') return 1;
+        if (!steps || steps.length === 0) return 0;
+        
+        // Find by name matching first (case-insensitive)
+        const matchIdx = steps.findIndex(s => s.label.toLowerCase() === interview.stage.toLowerCase());
+        if (matchIdx !== -1) return matchIdx;
+
+        // Fallback matching logic based on stage/status names
+        if (interview.stage === 'Document Pre-offer' || interview.offers === 'Yes') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('document') || s.label.toLowerCase().includes('offer'));
+            if (idx !== -1) return idx;
+        }
+        if (interview.stage === 'Final Round') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('final'));
+            if (idx !== -1) return idx;
+        }
+        if (interview.stage === 'Second Round') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('second'));
+            if (idx !== -1) return idx;
+        }
+        if (interview.stage === 'First Round') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('first'));
+            if (idx !== -1) return idx;
+        }
+        if (interview.shortlisted === 'Yes' || interview.stage === 'Short-List' || interview.status === 'Shortlisted') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('short'));
+            if (idx !== -1) return idx;
+        }
+        if (interview.status === 'Completed' || interview.status === 'Interview Done') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('done') || s.label.toLowerCase().includes('completed'));
+            if (idx !== -1) return idx;
+        }
+        if (interview.status === 'Scheduled') {
+            const idx = steps.findIndex(s => s.label.toLowerCase().includes('sched'));
+            if (idx !== -1) return idx;
+        }
+
         return 0;
     };
 
@@ -71,6 +130,15 @@ const ScheduleProgress: React.FC<ScheduleProgressProps> = ({ interview, onStepCl
             onStepClick('upload_resignation', 'Resignation Letter', { file: e.target.files[0] });
         }
     };
+
+    if (loading) {
+        return (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3rem', background: 'var(--bg-card)', borderRadius: '1rem', border: '1px solid var(--border)' }}>
+                <div className="spinner" style={{ borderTopColor: 'var(--primary)' }}></div>
+                <span style={{ marginLeft: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Resolving candidate workflow...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="schedule-progress-container">

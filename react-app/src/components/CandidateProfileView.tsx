@@ -368,7 +368,8 @@ const isCrtOrExpAlert = (dateStr: string) => {
 const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onClose, candidateIds = [], onNavigate, initialActivityModal = null }) => {
 
     const { showToast } = useToast();
-    const { user: authUser } = useAuth();
+    const { user: authUser, activeRole } = useAuth();
+    const canEdit = authUser?.role === 'Super Admin' || authUser?.role === 'Admin' || activeRole?.permissions?.candidates?.edit === true;
     const [candidate, setCandidate] = React.useState<any>(null);
     const [loading, setLoading] = React.useState(true);
     const [activeActivityModal, setActiveActivityModal] = React.useState<'Note' | 'Call' | 'Interview' | 'EditProfile' | null>(initialActivityModal);
@@ -406,7 +407,13 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     const [editingEducationIndex, setEditingEducationIndex] = React.useState<number | null>(null);
     const [followUpTaskChecked, setFollowUpTaskChecked] = React.useState(false);
     const [showFollowUpPopup, setShowFollowUpPopup] = React.useState(false);
-    const INTERVIEW_STAGES = ['Applied', 'Scheduled', 'Interview Done', 'Short-List', 'First Round', 'Second Round', 'Final Round', 'Selected', 'Document Pre-offer'];
+    const [workflow, setWorkflow] = React.useState<any>(null);
+    const INTERVIEW_STAGES = React.useMemo<string[]>(() => {
+        if (workflow && workflow.stages) {
+            return workflow.stages.filter((s: any) => s.isEnabled && !s.isArchived).map((s: any) => s.name as string);
+        }
+        return ['Applied', 'Scheduled', 'Interview Done', 'Short-List', 'First Round', 'Second Round', 'Final Round', 'Selected', 'Document Pre-offer'];
+    }, [workflow]);
     const [activeSubTab, setActiveSubTab] = React.useState<'All' | 'Notes&Calls' | 'Interviews'>('All');
     const [activeBottomTab, setActiveBottomTab] = React.useState('Details');
     const [expandedSections, setExpandedSections] = React.useState<string[]>(['Overview', 'Work', 'Education', 'System']);
@@ -452,6 +459,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const [searchOverview, setSearchOverview] = useState('');
     const [selectedTicketIndices, setSelectedTicketIndices] = useState<number[]>([]);
+    const [draftTickets, setDraftTickets] = useState<any[]>([]);
     const [operationRemark, setOperationRemark] = useState('');
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -467,6 +475,29 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const [openJobs, setOpenJobs] = useState<any[]>([]);
     const [users, setUsers] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (candidate) {
+            setDraftTickets(candidate.tickets || []);
+            setChecklistForm({
+                verifyField: '',
+                noPoachInCV: '',
+                removeNoPoach: '',
+                readyToMove: '',
+                vehicle: '',
+                graduation: '',
+                degreeCertificate: '',
+                rehiring: '',
+                ...candidate.fulfillmentChecklist
+            });
+            setOperationRemark(candidate.operationRemark || '');
+            setTicketForm(prev => ({
+                ...prev,
+                companyMulti: candidate.companyMulti || [],
+                dateFiled: candidate.dateFiled || ''
+            }));
+        }
+    }, [candidate?._id, candidate?.tickets, candidate?.companyMulti, candidate?.dateFiled, candidate?.fulfillmentChecklist, candidate?.operationRemark]);
 
     const uniqueOpenCompanies = useMemo(() => {
         const companies = openJobs.map(job => job.company);
@@ -568,6 +599,19 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         try {
             const data = await api.getCandidateById(candidateId);
             setCandidate(data);
+
+            // Fetch resolved workflow
+            try {
+                const wf = await api.resolveWorkflow({
+                    candidateId: data._id,
+                    jobId: data.jobId?._id || data.jobId,
+                    companyName: data.currentCompany || '',
+                    category: data.sector || ''
+                });
+                setWorkflow(wf);
+            } catch (wfErr) {
+                console.error('Failed to resolve workflow for candidate:', wfErr);
+            }
 
             // Sync operations-related state
             if (data.fulfillmentChecklist) {
@@ -941,7 +985,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     };
 
     const handleToggleSelectTicket = (index: number) => {
-        setSelectedTicketIndices(prev => 
+        setSelectedTicketIndices(prev =>
             prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
         );
     };
@@ -1202,7 +1246,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                     const currentStage = detail.stage || activityForm.interviewStage;
                     const stageIdx = INTERVIEW_STAGES.indexOf(currentStage);
                     const initialHistory: Record<string, string> = {};
-                    INTERVIEW_STAGES.forEach((s, idx) => {
+                    INTERVIEW_STAGES.forEach((s: string, idx: number) => {
                         if (idx <= stageIdx) {
                             initialHistory[s] = dateStr;
                         }
@@ -1374,7 +1418,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             const newHistory = { ...existingHistory };
             const currentStageIdx = INTERVIEW_STAGES.indexOf(newStage);
 
-            INTERVIEW_STAGES.forEach((stage, idx) => {
+            INTERVIEW_STAGES.forEach((stage: string, idx: number) => {
                 if (idx <= currentStageIdx && !newHistory[stage]) {
                     newHistory[stage] = timestamp;
                 }
@@ -1658,27 +1702,33 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
     const EditableInfoItem = ({ label, value, fieldKey }: { label: string, value: any, fieldKey: string }) => (
         <div className="info-item">
             <label>{label}</label>
-            <div className="editable-info-item" onClick={() => { setEditingField(fieldKey); setEditValue(value); }}>
-                <span>{value || 'Not available'}</span>
-                <div className="edit-pencil-icon"><EditIcon size={14} /></div>
+            {canEdit ? (
+                <div className="editable-info-item" onClick={() => { setEditingField(fieldKey); setEditValue(value); }}>
+                    <span>{value || 'Not available'}</span>
+                    <div className="edit-pencil-icon"><EditIcon size={14} /></div>
 
-                {editingField === fieldKey && (
-                    <div className="edit-popover" onClick={(e) => e.stopPropagation()}>
-                        <h4>{label}</h4>
-                        <input
-                            type="text"
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            autoFocus
-                        />
-                        <div className="edit-popover-footer">
-                            <a href="#" className="replace-field-link">Replace Field</a>
-                            <button className="btn-white text-sm" onClick={() => setEditingField(null)}>Close</button>
-                            <button className="btn-mint" onClick={handleSaveEdit}>Save</button>
+                    {editingField === fieldKey && (
+                        <div className="edit-popover" onClick={(e) => e.stopPropagation()}>
+                            <h4>{label}</h4>
+                            <input
+                                type="text"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                autoFocus
+                            />
+                            <div className="edit-popover-footer">
+                                <a href="#" className="replace-field-link">Replace Field</a>
+                                <button className="btn-white text-sm" onClick={() => setEditingField(null)}>Close</button>
+                                <button className="btn-mint" onClick={handleSaveEdit}>Save</button>
+                            </div>
                         </div>
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
+            ) : (
+                <div className="editable-info-item disabled" style={{ cursor: 'default' }}>
+                    <span>{value || 'Not available'}</span>
+                </div>
+            )}
         </div>
     );
 
@@ -1689,7 +1739,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                 <div className="nav-left-actions">
                     <button className="req-update-btn" onClick={handleRequestUpdate}>Request Updated Profile</button>
                     <div className="nav-icon-row">
-                        <div className="nav-icon-btn" onClick={() => setIsEditCandidateModalOpen(true)} title="Edit Candidate"><EditIcon size={16} /></div>
+                        {canEdit && (
+                            <div className="nav-icon-btn" onClick={() => setIsEditCandidateModalOpen(true)} title="Edit Candidate"><EditIcon size={16} /></div>
+                        )}
                     </div>
                 </div>
                 <div className="nav-right-actions">
@@ -1977,18 +2029,20 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                             {candidate?.extractedExperience?.length > 0 ? (
                                                 candidate.extractedExperience.map((exp: any, idx: number) => (
                                                     <div key={idx} className="history-card">
-                                                        <div className="history-card-actions">
-                                                            <button className="btn-history-action" title="Edit" onClick={() => {
-                                                                setWorkForm({ ...exp });
-                                                                setEditingExperienceIndex(idx);
-                                                                setIsWorkModalOpen(true);
-                                                            }}>
-                                                                <EditIcon size={14} />
-                                                            </button>
-                                                            <button className="btn-history-action delete" title="Delete" onClick={() => handleDeleteExperience(idx)}>
-                                                                <TrashIcon size={14} />
-                                                            </button>
-                                                        </div>
+                                                        {canEdit && (
+                                                            <div className="history-card-actions">
+                                                                <button className="btn-history-action" title="Edit" onClick={() => {
+                                                                    setWorkForm({ ...exp });
+                                                                    setEditingExperienceIndex(idx);
+                                                                    setIsWorkModalOpen(true);
+                                                                }}>
+                                                                    <EditIcon size={14} />
+                                                                </button>
+                                                                <button className="btn-history-action delete" title="Delete" onClick={() => handleDeleteExperience(idx)}>
+                                                                    <TrashIcon size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                         <div className="history-card-header">
                                                             <div className="history-company-logo">
                                                                 <BriefcaseIcon size={18} />
@@ -2016,12 +2070,12 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                             ) : (
                                                 <div className="empty-history-placeholder">
                                                     <p>No work history found</p>
-                                                    <button className="btn-outline-blue" onClick={() => setIsWorkModalOpen(true)}>+ Add Experience</button>
+                                                    {canEdit && <button className="btn-outline-blue" onClick={() => setIsWorkModalOpen(true)}>+ Add Experience</button>}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                    {candidate?.extractedExperience?.length > 0 && (
+                                    {candidate?.extractedExperience?.length > 0 && canEdit && (
                                         <button className="add-more-link" onClick={() => {
                                             setEditingExperienceIndex(null);
                                             setWorkForm({
@@ -2040,18 +2094,20 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                             {candidate?.extractedEducation?.length > 0 ? (
                                                 candidate.extractedEducation.map((edu: any, idx: number) => (
                                                     <div key={idx} className="history-card">
-                                                        <div className="history-card-actions">
-                                                            <button className="btn-history-action" title="Edit" onClick={() => {
-                                                                setEducationForm({ ...edu });
-                                                                setEditingEducationIndex(idx);
-                                                                setIsEducationModalOpen(true);
-                                                            }}>
-                                                                <EditIcon size={14} />
-                                                            </button>
-                                                            <button className="btn-history-action delete" title="Delete" onClick={() => handleDeleteEducation(idx)}>
-                                                                <TrashIcon size={14} />
-                                                            </button>
-                                                        </div>
+                                                        {canEdit && (
+                                                            <div className="history-card-actions">
+                                                                <button className="btn-history-action" title="Edit" onClick={() => {
+                                                                    setEducationForm({ ...edu });
+                                                                    setEditingEducationIndex(idx);
+                                                                    setIsEducationModalOpen(true);
+                                                                }}>
+                                                                    <EditIcon size={14} />
+                                                                </button>
+                                                                <button className="btn-history-action delete" title="Delete" onClick={() => handleDeleteEducation(idx)}>
+                                                                    <TrashIcon size={14} />
+                                                                </button>
+                                                            </div>
+                                                        )}
                                                         <div className="history-card-header">
                                                             <div className="history-company-logo education">
                                                                 <UserIcon size={18} />
@@ -2073,12 +2129,12 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                             ) : (
                                                 <div className="empty-history-placeholder">
                                                     <p>No education history found</p>
-                                                    <button className="btn-outline-blue" onClick={() => setIsEducationModalOpen(true)}>+ Add Education</button>
+                                                    {canEdit && <button className="btn-outline-blue" onClick={() => setIsEducationModalOpen(true)}>+ Add Education</button>}
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                    {candidate?.extractedEducation?.length > 0 && (
+                                    {candidate?.extractedEducation?.length > 0 && canEdit && (
                                         <button className="add-more-link" onClick={() => {
                                             setEditingEducationIndex(null);
                                             setEducationForm({
@@ -2182,7 +2238,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                         <FileTextIcon size={18} /> Tickets Management
                                     </span>
                                     {selectedTicketIndices.length > 0 && (
-                                        <button 
+                                        <button
                                             onClick={handleBulkDeleteTickets}
                                             className="btn-danger-red"
                                             style={{
@@ -2208,9 +2264,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '40px', textAlign: 'center' }}>
-                                                    <input 
-                                                        type="checkbox" 
-                                                        onChange={handleSelectAllTickets} 
+                                                    <input
+                                                        type="checkbox"
+                                                        onChange={handleSelectAllTickets}
                                                         checked={candidate.tickets && candidate.tickets.length > 0 && selectedTicketIndices.length === candidate.tickets.length}
                                                         style={{ cursor: 'pointer' }}
                                                     />
@@ -2244,9 +2300,9 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                 return (
                                                     <tr key={`ticket-${idx}`} className={trClass}>
                                                         <td className="text-center" style={{ verticalAlign: 'middle' }}>
-                                                            <input 
-                                                                type="checkbox" 
-                                                                checked={selectedTicketIndices.includes(idx)} 
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={selectedTicketIndices.includes(idx)}
                                                                 onChange={() => handleToggleSelectTicket(idx)}
                                                                 style={{ cursor: 'pointer' }}
                                                             />
@@ -2548,7 +2604,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                 <span>Link</span>
                                                             </button>
                                                         </>
-                                                    ) : (
+                                                    ) : canEdit ? (
                                                         <button
                                                             className="file-action-btn upload"
                                                             onClick={() => setIsEditCandidateModalOpen(true)}
@@ -2556,6 +2612,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                             <PlusIcon size={16} />
                                                             <span>Upload</span>
                                                         </button>
+                                                    ) : (
+                                                        <span style={{ fontSize: '0.8rem', color: '#94a3b8', padding: '6px 12px' }}>Not Uploaded</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -3057,7 +3115,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                             onChange={(e) => handleDetailChange(company, 'stage', e.target.value)}
                                                                             className="accordion-select"
                                                                         >
-                                                                            {INTERVIEW_STAGES.map(s => <option key={s}>{s}</option>)}
+                                                                            {INTERVIEW_STAGES.map((s: string) => <option key={s}>{s}</option>)}
                                                                         </select>
                                                                     </div>
                                                                     <div className="form-field-group">
@@ -3292,7 +3350,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                         {/* Stepper block */}
                                                         {expandedInterviewStages.includes(activity.id) && (
                                                             <div className="interview-stage-vertical-stepper" style={{ marginTop: '8px', padding: '16px' }}>
-                                                                {INTERVIEW_STAGES.map((stage, idx) => {
+                                                                {INTERVIEW_STAGES.map((stage: string, idx: number) => {
                                                                     const currentStage = activity.stage || 'Applied';
                                                                     const currentIdx = INTERVIEW_STAGES.indexOf(currentStage);
                                                                     const isRejected = activity.status === 'Rejected';
@@ -3309,6 +3367,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                     })() : '') : '');
                                                                     const isCompleted = !!stageTimestamp || isPast;
 
+                                                                    const stageConfig = workflow?.stages?.find((s: any) => s.name === stage);
+                                                                    const showOnboardingSettings = stageConfig ? stageConfig.actions?.showOnboardingSettings : (stage === 'Document Pre-offer');
+                                                                    const showRejectButton = stageConfig ? stageConfig.actions?.showRejectButton : (stage !== 'Selected');
+                                                                    const showOfferButton = stageConfig ? stageConfig.actions?.showOfferButton : (stage === 'Selected');
+
                                                                     // Semantic Color Logic
                                                                     let stageColor = '#9CA3AF'; // Default gray
                                                                     if (isCurrent) {
@@ -3322,11 +3385,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                     return (
                                                                         <div
                                                                             key={stage}
-                                                                            className={`vertical-stepper-step ${isPast ? 'past' : ''} ${isCurrent ? 'current' : ''} ${isDisabled ? 'disabled' : ''} ${isRejected && isCurrent ? 'rejected' : ''}`}
-                                                                            onClick={() => !isDisabled && handleUpdateInterviewStage(activity.id, stage)}
+                                                                            className={`vertical-stepper-step ${isPast ? 'past' : ''} ${isCurrent ? 'current' : ''} ${(isDisabled || !canEdit) ? 'disabled' : ''} ${isRejected && isCurrent ? 'rejected' : ''}`}
+                                                                            onClick={() => canEdit && !isDisabled && handleUpdateInterviewStage(activity.id, stage)}
                                                                             style={{
-                                                                                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                                                                                opacity: isDisabled ? 0.5 : 1
+                                                                                cursor: (isDisabled || !canEdit) ? 'not-allowed' : 'pointer',
+                                                                                opacity: (isDisabled || !canEdit) ? 0.5 : 1
                                                                             }}
                                                                         >
                                                                             <div className="vertical-step-indicator">
@@ -3365,16 +3428,16 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                                     <span
                                                                                         className="vertical-step-label"
                                                                                         style={{
-                                                                                            color: isDisabled ? '#94a3b8' : ((isCompleted || isCurrent) ? '#1e293b' : '#64748b'),
+                                                                                            color: (isDisabled || !canEdit) ? '#94a3b8' : ((isCompleted || isCurrent) ? '#1e293b' : '#64748b'),
                                                                                             fontWeight: (isCurrent || isCompleted) ? '600' : '400',
-                                                                                            textDecoration: isDisabled ? 'line-through' : 'none',
+                                                                                            textDecoration: (isDisabled || !canEdit) ? 'line-through' : 'none',
                                                                                             display: 'flex',
                                                                                             alignItems: 'center',
                                                                                             gap: '8px'
                                                                                         }}
                                                                                     >
                                                                                         {stage}
-                                                                                        {stage === 'Document Pre-offer' && !isDisabled && (
+                                                                                        {showOnboardingSettings && !isDisabled && canEdit && (
                                                                                             <div
                                                                                                 className="nav-icon-btn"
                                                                                                 style={{ width: '20px', height: '20px', padding: 0 }}
@@ -3388,7 +3451,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                                         )}
                                                                                     </span>
 
-                                                                                    {isCurrent && !isRejected && stage !== 'Selected' && (
+                                                                                    {isCurrent && !isRejected && showRejectButton && canEdit && (
                                                                                         <button
                                                                                             className="reject-stage-btn"
                                                                                             onClick={(e) => {
@@ -3410,7 +3473,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                                         </button>
                                                                                     )}
 
-                                                                                    {isCurrent && !isRejected && stage === 'Selected' && (
+                                                                                    {isCurrent && !isRejected && showOfferButton && canEdit && (
                                                                                         <div style={{ display: 'flex', gap: '6px' }}>
                                                                                             <button
                                                                                                 className="accept-candidate-btn"

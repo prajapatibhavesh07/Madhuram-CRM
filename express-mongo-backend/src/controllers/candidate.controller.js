@@ -345,15 +345,17 @@ exports.getCandidates = async (req, res) => {
             // Non-admin users can see:
             // 1. Candidates they or their subordinates created (createdBy in allowedUserIds)
             // 2. Candidates assigned to them via tasks
+            // 3. Candidates assigned to them as Operation Manager
+            const queryConditions = [
+                { createdBy: { $in: allowedUserIds } },
+                { assignedOperationManager: _id }
+            ];
+
             if (candidateIdsFromTasks.length > 0) {
-                query.$or = [
-                    { createdBy: { $in: allowedUserIds } },
-                    { _id: { $in: candidateIdsFromTasks } }
-                ];
-            } else {
-                // No assigned tasks, show self-created and subordinate candidates
-                query.createdBy = { $in: allowedUserIds };
+                queryConditions.push({ _id: { $in: candidateIdsFromTasks } });
             }
+
+            query.$or = queryConditions;
         }
 
         if (isApproved !== undefined) {
@@ -455,16 +457,19 @@ exports.getCandidateById = async (req, res) => {
             .populate('assignedOperationManager', 'name');
         if (!candidate) return res.status(404).json({ message: "Candidate not found" });
 
-        // Role-base check - non-admins can view candidates they or their subordinates created OR assigned to them via tasks
+        // Role-base check - non-admins can view candidates they or their subordinates created OR assigned to them via tasks or operations
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
             const subordinateIds = await getSubordinateIds(req.user._id);
             const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
 
-            const isCreatorOrSubordinate = candidate.createdBy && allowedUserIds.includes(candidate.createdBy.toString());
+            const createdById = candidate.createdBy ? (candidate.createdBy._id || candidate.createdBy).toString() : null;
+            const isCreatorOrSubordinate = createdById && allowedUserIds.includes(createdById);
             const hasTask = await Task.exists({ assignedTo: req.user._id, candidate: candidate._id });
+            const isAssignedOpManager = candidate.assignedOperationManager && 
+                (candidate.assignedOperationManager._id || candidate.assignedOperationManager).toString() === req.user._id.toString();
             
-            if (!isCreatorOrSubordinate && !hasTask) {
-                return res.status(403).json({ message: "Access denied: You can only view candidates you or your subordinates created, or those assigned to you." });
+            if (!isCreatorOrSubordinate && !hasTask && !isAssignedOpManager) {
+                return res.status(403).json({ message: "Access denied: You can only view candidates you or your subordinates created, those assigned to you, or those you are managing." });
             }
         }
 
@@ -486,16 +491,19 @@ exports.updateCandidate = async (req, res) => {
         const currentCandidate = await Candidate.findById(req.params.id);
         if (!currentCandidate) return res.status(404).json({ message: "Candidate not found" });
 
-        // Role-base check - non-admins can update candidates they or their subordinates created OR assigned to them via tasks
+        // Role-base check - non-admins can update candidates they or their subordinates created OR assigned to them via tasks or operations
         if (req.user.role !== 'Admin' && req.user.role !== 'Super Admin') {
             const subordinateIds = await getSubordinateIds(req.user._id);
             const allowedUserIds = [req.user._id.toString(), ...subordinateIds.map(id => id.toString())];
 
-            const isCreatorOrSubordinate = currentCandidate.createdBy && allowedUserIds.includes(currentCandidate.createdBy.toString());
+            const createdById = currentCandidate.createdBy ? (currentCandidate.createdBy._id || currentCandidate.createdBy).toString() : null;
+            const isCreatorOrSubordinate = createdById && allowedUserIds.includes(createdById);
             const hasTask = await Task.exists({ assignedTo: req.user._id, candidate: currentCandidate._id });
+            const isAssignedOpManager = currentCandidate.assignedOperationManager && 
+                (currentCandidate.assignedOperationManager._id || currentCandidate.assignedOperationManager).toString() === req.user._id.toString();
 
-            if (!isCreatorOrSubordinate && !hasTask) {
-                return res.status(403).json({ message: "Access denied: You can only update candidates you or your subordinates created, or those assigned to you." });
+            if (!isCreatorOrSubordinate && !hasTask && !isAssignedOpManager) {
+                return res.status(403).json({ message: "Access denied: You can only update candidates you or your subordinates created, those assigned to you, or those you are managing." });
             }
         }
 

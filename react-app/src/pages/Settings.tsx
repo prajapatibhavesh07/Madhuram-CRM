@@ -33,7 +33,8 @@ const Settings = () => {
     const [generalConfig, setGeneralConfig] = useState({
         companyName: 'CRM Enterprise',
         website: 'https://example.com',
-        dateFormat: 'DD/MM/YYYY'
+        dateFormat: 'DD/MM/YYYY',
+        companyLogo: ''
     });
 
     const [attendanceConfig, setAttendanceConfig] = useState({
@@ -84,7 +85,8 @@ const Settings = () => {
             if (data.general) setGeneralConfig({
                 companyName: data.general.companyName || 'CRM Enterprise',
                 website: data.general.website || '',
-                dateFormat: data.general.dateFormat || 'DD/MM/YYYY'
+                dateFormat: data.general.dateFormat || 'DD/MM/YYYY',
+                companyLogo: data.general.companyLogo || ''
             });
             if (data.payroll) setPayrollConfig(data.payroll);
             if (data.apiKeys) setApiKeysConfig(data.apiKeys);
@@ -157,6 +159,15 @@ const Settings = () => {
             if (generalConfig.dateFormat) {
                 localStorage.setItem('dateFormat', generalConfig.dateFormat);
             }
+            if (generalConfig.companyName) {
+                localStorage.setItem('companyName', generalConfig.companyName);
+            }
+            if (generalConfig.companyLogo) {
+                localStorage.setItem('companyLogo', generalConfig.companyLogo);
+            } else {
+                localStorage.removeItem('companyLogo');
+            }
+            window.dispatchEvent(new Event('settingsUpdated'));
             showToast('Settings saved successfully', 'success');
         } catch (error: any) {
             showToast(error.message || 'Failed to save settings', 'error');
@@ -198,7 +209,9 @@ const Settings = () => {
                                     alignItems: 'center',
                                     gap: '8px',
                                     padding: '1.25rem 1.5rem',
-                                    border: 'none',
+                                    borderTop: 'none',
+                                    borderLeft: 'none',
+                                    borderRight: 'none',
                                     background: 'none',
                                     fontSize: '0.95rem',
                                     fontWeight: '700',
@@ -376,6 +389,38 @@ const Settings = () => {
                                             <option value="DD MMM YYYY">DD MMM YYYY (e.g. 08 Jun 2026)</option>
                                             <option value="DD MMMM YYYY">DD MMMM YYYY (e.g. 08 June 2026)</option>
                                         </select>
+                                    </div>
+                                    <div className="input-group">
+                                        <label>Company Logo</label>
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) {
+                                                    const reader = new FileReader();
+                                                    reader.onloadend = () => {
+                                                        setGeneralConfig({ ...generalConfig, companyLogo: reader.result as string });
+                                                    };
+                                                    reader.readAsDataURL(file);
+                                                }
+                                            }}
+                                            className="input-field"
+                                            style={{ padding: '6px' }}
+                                        />
+                                        {generalConfig.companyLogo && (
+                                            <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                                <img src={generalConfig.companyLogo} alt="Logo Preview" style={{ maxHeight: '50px', maxWidth: '150px', objectFit: 'contain', border: '1px solid var(--border)', borderRadius: '4px', padding: '4px' }} />
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary"
+                                                    onClick={() => setGeneralConfig({ ...generalConfig, companyLogo: '' })}
+                                                    style={{ padding: '4px 8px', fontSize: '0.75rem', height: 'auto', lineHeight: 'normal' }}
+                                                >
+                                                    Remove Logo
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>

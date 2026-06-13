@@ -389,7 +389,9 @@ const ImportExport = () => {
                         style={{
                             padding: '0.75rem 0.5rem',
                             background: 'none',
-                            border: 'none',
+                            borderTop: 'none',
+                            borderLeft: 'none',
+                            borderRight: 'none',
                             borderBottom: activeTab === tab.id ? '2px solid var(--primary)' : '2px solid transparent',
                             color: activeTab === tab.id ? 'var(--primary)' : 'var(--text-muted)',
                             fontWeight: '600',

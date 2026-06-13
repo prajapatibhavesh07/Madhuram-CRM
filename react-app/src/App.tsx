@@ -23,6 +23,7 @@ import JobForm from './pages/JobForm';
 import OfferList from './pages/OfferList';
 import ImportExport from './pages/ImportExport';
 import Settings from './pages/Settings';
+import FieldManagement from './pages/FieldManagement';
 import TemplateManagement from './pages/TemplateManagement';
 import OperationDesk from './pages/OperationDesk';
 import TaskList from './pages/TaskList';
@@ -42,6 +43,26 @@ function App() {
       const storedUser = localStorage.getItem('user');
       if (!storedUser) return;
       try {
+        // Fetch public settings for logo and company name
+        try {
+          const publicData = await api.getPublicSettings();
+          if (publicData && publicData.general) {
+            if (publicData.general.companyName) {
+              localStorage.setItem('companyName', publicData.general.companyName);
+            }
+            if (publicData.general.companyLogo) {
+              localStorage.setItem('companyLogo', publicData.general.companyLogo);
+            } else {
+              localStorage.removeItem('companyLogo');
+            }
+            if (publicData.general.dateFormat) {
+              localStorage.setItem('dateFormat', publicData.general.dateFormat);
+            }
+          }
+        } catch (pubError) {
+          console.error('Error fetching public settings:', pubError);
+        }
+
         const user = JSON.parse(storedUser);
         if (user && (user.role === 'Admin' || user.role === 'Super Admin')) {
           const data = await api.getSettings();
@@ -268,6 +289,14 @@ function App() {
                   element={
                     <ProtectedRoute requiredModule="settings">
                       <Settings />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings/field-management"
+                  element={
+                    <ProtectedRoute requiredModule="settings">
+                      <FieldManagement />
                     </ProtectedRoute>
                   }
                 />
