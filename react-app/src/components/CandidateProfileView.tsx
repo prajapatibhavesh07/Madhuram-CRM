@@ -459,7 +459,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const [searchOverview, setSearchOverview] = useState('');
     const [selectedTicketIndices, setSelectedTicketIndices] = useState<number[]>([]);
-    const [draftTickets, setDraftTickets] = useState<any[]>([]);
     const [operationRemark, setOperationRemark] = useState('');
     const [previewFile, setPreviewFile] = useState<{ url: string; name: string } | null>(null);
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -478,7 +477,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     useEffect(() => {
         if (candidate) {
-            setDraftTickets(candidate.tickets || []);
             setChecklistForm({
                 verifyField: '',
                 noPoachInCV: '',

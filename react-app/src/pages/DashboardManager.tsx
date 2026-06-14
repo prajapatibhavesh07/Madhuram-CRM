@@ -26,9 +26,8 @@ const DashboardManager = ({ stats, onOpenTicketModal }: { stats: any; onOpenTick
     };
 
     return (
-        <div className="fade-in dashboard-layout">
-            <div className="dashboard-main-content">
-                <div className="stats-row">
+        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%' }}>
+            <div className="stats-row">
                     <ModernStatsCard
                         title="Ready To Move"
                         value={stats?.operations?.readyToMove || '0'}
@@ -242,7 +241,6 @@ const DashboardManager = ({ stats, onOpenTicketModal }: { stats: any; onOpenTick
                                     </div>
                                 </div>
                             ))}
-                        </div>
                     </div>
                 </div>
             </div>

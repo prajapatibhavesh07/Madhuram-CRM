@@ -523,7 +523,7 @@ const Dashboard = () => {
 
     if (isManager) {
         return (
-            <div className="fade-in dashboard-layout" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
+            <div className="fade-in dashboard-layout custom-scrollbar" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
                 <DashboardManager stats={stats} onOpenTicketModal={handleOpenTicketEditModal} />
                 
                 {/* 4 Bottom Widgets Row */}
@@ -979,7 +979,7 @@ const Dashboard = () => {
     };
 
     return (
-        <div className="fade-in dashboard-layout" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
+        <div className="fade-in dashboard-layout custom-scrollbar" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
 
             {/* Header Date Range Bar */}
             <div className="dashboard-header-container" style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
