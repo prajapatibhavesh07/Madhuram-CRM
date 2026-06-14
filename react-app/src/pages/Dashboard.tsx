@@ -381,16 +381,19 @@ const Dashboard = () => {
         : mockActionItems.reminders;
 
     const ticketsList = stats
-        ? (stats.pendingTickets || []).map((c: any) => ({
-            id: c._id,
-            title: `Portal Ticket for ${c.name}`,
-            subtitle: `Candidate ID: ${c.applicationId} • Phone: ${c.phone || 'N/A'}`,
-            time: c.tickets?.[0]?.expdate ? new Date(c.tickets[0].expdate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'N/A',
-            status: c.tickets?.[0]?.portalStatus || 'PENDING',
-            color: c.tickets?.[0]?.portalStatus === 'Pending' ? '#f59e0b' : '#f43f5e',
-            icon: ListIcon,
-            candidate: c
-        }))
+        ? (stats.pendingTickets || []).map((c: any) => {
+            const pendingTicket = c.tickets?.find((t: any) => t.portalStatus !== 'Completed') || c.tickets?.[0];
+            return {
+                id: c._id,
+                title: `Portal Ticket for ${c.name}`,
+                subtitle: `Candidate ID: ${c.applicationId} • Phone: ${c.phone || 'N/A'}`,
+                time: pendingTicket?.expdate ? new Date(pendingTicket.expdate).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'N/A',
+                status: pendingTicket?.portalStatus || 'PENDING',
+                color: pendingTicket?.portalStatus === 'Pending' ? '#f59e0b' : '#f43f5e',
+                icon: ListIcon,
+                candidate: c
+            };
+        })
         : mockActionItems.tickets;
 
     const assessmentList = stats
@@ -524,7 +527,7 @@ const Dashboard = () => {
     if (isManager) {
         return (
             <div className="fade-in dashboard-layout custom-scrollbar" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
-                <DashboardManager stats={stats} onOpenTicketModal={handleOpenTicketEditModal} />
+                <DashboardManager stats={stats} onOpenTicketModal={handleOpenTicketEditModal} onOpenTeamDrawer={() => setIsTeamDrawerOpen(true)} />
 
                 {/* 4 Bottom Widgets Row */}
                 <div className="dashboard-bottom-grid" style={{ marginTop: '0.5rem' }}>

@@ -232,8 +232,9 @@ export const MiniBarChart = ({ data, color = '#6366f1' }: { data: number[], colo
 
 // High-fidelity Stats Card with a beautiful smooth sparkline at the bottom
 export const ModernStatsCard = ({ title, value, percent, icon: Icon, chartData, color = '#6366f1' }: any) => {
-    // In the mockup, Total Candidates, New Assigned, Assessment Pending are positive trend (green), Reminders is red
-    const isUp = title !== 'Reminders';
+    // In the mockup, Total Candidates, New Assigned, Assessment Pending are positive trend (green), Reminders is red (negative)
+    const isUp = typeof percent === 'number' ? percent >= 0 : !percent?.toString().startsWith('-');
+    const cleanPercent = percent?.toString().replace(/[+-]/g, '') || '0';
 
     return (
         <div className="modern-stats-card" style={{ padding: '1rem 0 0 0', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', overflow: 'hidden', background: '#ffffff', borderRadius: '16px', border: '1px solid rgba(226, 232, 240, 0.8)', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.01)' }}>
@@ -265,7 +266,7 @@ export const ModernStatsCard = ({ title, value, percent, icon: Icon, chartData, 
                             display: 'inline-flex',
                             alignItems: 'center'
                         }}>
-                            {isUp ? '↑' : '↑'} {percent}%
+                            {isUp ? '↑' : '↓'} {cleanPercent}%
                         </span>
                     </div>
                     <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '1px' }}>vs last 7 days</span>
