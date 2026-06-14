@@ -285,9 +285,7 @@ exports.getStats = async (req, res) => {
 
         // --- NEW DASHBOARD LISTS ---
 
-        // 1. Pending or Expired Ticket List
-        // portalStatus 'Pending' OR expdate < now
-        // Note: expdate comparison for strings is tricky, but ISO or YYYY-MM-DD works with $lt
+        // 1. Pending or Expired Ticket List (Sorted DESC by updatedAt)
         const todayStr = now.toISOString().split('T')[0];
         const pendingTickets = await Candidate.find({
             ...lifetimeCandidateQuery,
@@ -301,9 +299,11 @@ exports.getStats = async (req, res) => {
                     ]
                 }
             }
-        }).select('name tickets applicationId phone');
+        })
+        .select('name tickets applicationId phone updatedAt')
+        .sort({ updatedAt: -1 });
 
-        // 2. Current Day & Overdue Reminders List (Dynamic Range)
+        // 2. Current Day & Overdue Reminders List (Sorted DESC by reminderTime)
         let reminderFilter = {
             ...taskQuery,
             status: { $ne: 'Completed' }
@@ -315,24 +315,30 @@ exports.getStats = async (req, res) => {
         }
 
         const reminders = await mongoose.model('Task').find(reminderFilter)
-            .sort({ reminderTime: 1 }).populate('candidate', 'name phone applicationId');
+            .sort({ reminderTime: -1 }).populate('candidate', 'name phone applicationId');
 
-        // 3. Assessment Pending List
+        // 3. Assessment Pending List (Current Day only, sorted DESC by updatedAt)
         const assessmentPending = await Candidate.find({
             ...lifetimeCandidateQuery,
-            assessment: 'Pending'
-        }).select('name applicationId phone location createdAt');
+            assessment: 'Pending',
+            $or: [
+                { createdAt: { $gte: startOfToday, $lte: endOfToday } },
+                { updatedAt: { $gte: startOfToday, $lte: endOfToday } }
+            ]
+        })
+        .select('name applicationId phone location createdAt updatedAt')
+        .sort({ updatedAt: -1 });
 
-        // 4. New Assigned Candidate List (Dynamic Range)
-        let newAssignedFilter = { ...lifetimeCandidateQuery };
-        if (startDate && endDate) {
-            newAssignedFilter.updatedAt = { $gte: startDate, $lte: endDate };
-        } else {
-            newAssignedFilter.updatedAt = { $gte: startOfToday };
-        }
-
-        const newAssigned = await Candidate.find(newAssignedFilter)
-            .select('name applicationId phone createdAt updatedAt');
+        // 4. New Assigned Candidate List (Current Day only, sorted DESC by createdAt)
+        const newAssigned = await Candidate.find({
+            ...lifetimeCandidateQuery,
+            $or: [
+                { createdAt: { $gte: startOfToday, $lte: endOfToday } },
+                { updatedAt: { $gte: startOfToday, $lte: endOfToday } }
+            ]
+        })
+        .select('name applicationId phone createdAt updatedAt')
+        .sort({ createdAt: -1 });
 
         res.json({
             role: userRole,

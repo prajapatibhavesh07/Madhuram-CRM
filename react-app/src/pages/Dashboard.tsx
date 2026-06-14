@@ -145,7 +145,7 @@ const Dashboard = () => {
     };
 
     const handleModalToggleSelectTicket = (index: number) => {
-        setModalSelectedTicketIndices(prev => 
+        setModalSelectedTicketIndices(prev =>
             prev.includes(index) ? prev.filter(i => i !== index) : [...prev, index]
         );
     };
@@ -172,12 +172,12 @@ const Dashboard = () => {
                 dateFiled: modalTicketForm.dateFiled
             };
             await api.updateCandidate(ticketModalCandidate._id, updateData);
-            
+
             // Update local state in stats so it is reflected immediately
             setStats((prev: any) => {
                 if (!prev || !prev.pendingTickets) return prev;
-                const updatedTickets = prev.pendingTickets.map((c: any) => 
-                    c._id === ticketModalCandidate._id 
+                const updatedTickets = prev.pendingTickets.map((c: any) =>
+                    c._id === ticketModalCandidate._id
                         ? { ...c, tickets: modalTickets, companyMulti: modalTicketForm.companyMulti, dateFiled: modalTicketForm.dateFiled }
                         : c
                 );
@@ -186,7 +186,7 @@ const Dashboard = () => {
 
             showToast('Tickets saved successfully. A notification has been sent to all team members.', 'success');
             setIsTicketModalOpen(false);
-            
+
             await fetchData();
         } catch (error) {
             console.error('Save tickets error:', error);
@@ -525,7 +525,7 @@ const Dashboard = () => {
         return (
             <div className="fade-in dashboard-layout custom-scrollbar" style={{ background: '#f8fafc', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', height: 'calc(100vh - 64px)', overflowY: 'auto' }}>
                 <DashboardManager stats={stats} onOpenTicketModal={handleOpenTicketEditModal} />
-                
+
                 {/* 4 Bottom Widgets Row */}
                 <div className="dashboard-bottom-grid" style={{ marginTop: '0.5rem' }}>
                     {/* Column 1: Task Completion */}
@@ -705,8 +705,8 @@ const Dashboard = () => {
                         <div className="form-field-group">
                             <label style={{ fontSize: '0.78rem', fontWeight: 600, color: '#475569', marginBottom: '6px', display: 'block' }}>Company (Multi-select)</label>
                             <div className="custom-multi-select-container" style={{ position: 'relative' }}>
-                                <div 
-                                    className="multi-select-trigger" 
+                                <div
+                                    className="multi-select-trigger"
                                     onClick={() => setIsModalCompanyDropdownOpen(!isModalCompanyDropdownOpen)}
                                     style={{
                                         border: '1px solid #cbd5e1',
@@ -729,7 +729,7 @@ const Dashboard = () => {
                                 </div>
 
                                 {isModalCompanyDropdownOpen && (
-                                    <div 
+                                    <div
                                         className="multi-select-dropdown"
                                         style={{
                                             position: 'absolute',
@@ -810,7 +810,7 @@ const Dashboard = () => {
                                 <FileTextIcon size={16} /> Tickets Management
                             </h4>
                             {modalSelectedTicketIndices.length > 0 && (
-                                <button 
+                                <button
                                     onClick={handleModalBulkDeleteTickets}
                                     style={{
                                         padding: '4px 10px',
@@ -835,9 +835,9 @@ const Dashboard = () => {
                                 <thead>
                                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                                         <th style={{ width: '40px', padding: '10px', textAlign: 'center' }}>
-                                            <input 
-                                                type="checkbox" 
-                                                onChange={handleModalSelectAllTickets} 
+                                            <input
+                                                type="checkbox"
+                                                onChange={handleModalSelectAllTickets}
                                                 checked={modalTickets.length > 0 && modalSelectedTicketIndices.length === modalTickets.length}
                                                 style={{ cursor: 'pointer' }}
                                             />
@@ -856,9 +856,9 @@ const Dashboard = () => {
                                     {modalTickets.map((t: any, idx: number) => (
                                         <tr key={`modal-ticket-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
                                             <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={modalSelectedTicketIndices.includes(idx)} 
+                                                <input
+                                                    type="checkbox"
+                                                    checked={modalSelectedTicketIndices.includes(idx)}
                                                     onChange={() => handleModalToggleSelectTicket(idx)}
                                                     style={{ cursor: 'pointer' }}
                                                 />
@@ -1090,7 +1090,7 @@ const Dashboard = () => {
                             </div>
 
                             {/* Action List Items */}
-                            <div className="candidate-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '250px', overflowY: 'auto', overflowX: 'hidden' }}>
+                            <div className="candidate-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '375px', overflowY: 'auto', overflowX: 'hidden' }}>
                                 {liveActionItems[activeList].map((item: any) => (
                                     <div
                                         key={item.id}
@@ -1340,7 +1340,7 @@ const Dashboard = () => {
                     title={punchModal.title}
                     size="sm"
                     footer={
-                        <button 
+                        <button
                             onClick={() => setPunchModal(null)}
                             style={{
                                 background: punchModal.isError ? '#ef4444' : '#10b981',
