@@ -1135,15 +1135,19 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     // --- Role-Based Access Control ---
 
-    const isAdminOrManager = useMemo(() => {
-        const role = authUser?.role?.toLowerCase().trim() || '';
-        return ['admin', 'manager', 'super admin', 'superadmin'].includes(role);
-    }, [authUser]);
+
 
     const canDeleteTickets = useMemo(() => {
         const role = authUser?.role?.toLowerCase().trim() || '';
-        return ['super admin', 'admin', 'manager', 'operation manager', 'operations manager'].includes(role);
-    }, [authUser]);
+        if (role === 'super admin' || role === 'admin') return true;
+        return activeRole?.permissions?.operations?.delete === true;
+    }, [authUser, activeRole]);
+
+    const canViewOperations = useMemo(() => {
+        const role = authUser?.role?.toLowerCase().trim() || '';
+        if (role === 'super admin' || role === 'admin') return true;
+        return activeRole?.permissions?.operations?.view === true;
+    }, [authUser, activeRole]);
 
     // --- Operations Automation: Scheduled Interviews -> Tickets ---
     useEffect(() => {
@@ -2158,7 +2162,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                     <div className="bottom-tabs-row">
                         {[
                             { name: 'Details', count: null, visible: true },
-                            { name: 'Operations', count: candidate?.tickets?.length || 0, visible: isAdminOrManager },
+                            { name: 'Operations', count: candidate?.tickets?.length || 0, visible: canViewOperations },
                             { name: 'Questions', count: 0, visible: true },
                             { name: 'Related Emails', count: null, visible: true },
                             { name: 'Files', count: (candidate?.resume ? 1 : 0) + (candidate?.photograph ? 1 : 0) + (candidate?.panCard ? 1 : 0) + (candidate?.aadhaarCard ? 1 : 0), visible: true }
@@ -2325,7 +2329,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                         </div>
                     )}
 
-                    {activeBottomTab === 'Operations' && isAdminOrManager && (
+                    {activeBottomTab === 'Operations' && canViewOperations && (
                         <div className="operations-unified-container mt-16">
                             <div className="ops-header-section">
                                 <div className="form-field-group">

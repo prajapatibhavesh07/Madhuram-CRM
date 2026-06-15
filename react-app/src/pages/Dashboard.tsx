@@ -129,13 +129,14 @@ const calculateTicketDates = (uploaddateStr: string, companyName: string, openJo
 };
 
 const Dashboard = () => {
-    const { user } = useAuth();
+    const { user, activeRole } = useAuth();
     const { showToast } = useToast();
 
     const canDeleteTickets = React.useMemo(() => {
         const role = user?.role?.toLowerCase().trim() || '';
-        return ['super admin', 'admin', 'manager', 'operation manager', 'operations manager'].includes(role);
-    }, [user]);
+        if (role === 'super admin' || role === 'admin') return true;
+        return activeRole?.permissions?.operations?.delete === true;
+    }, [user, activeRole]);
 
     // Ticket Modal States
     const [isTicketModalOpen, setIsTicketModalOpen] = React.useState(false);
