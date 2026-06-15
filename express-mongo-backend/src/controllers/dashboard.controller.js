@@ -316,7 +316,7 @@ exports.getStats = async (req, res) => {
                 }
             ]
         })
-        .select('name tickets applicationId phone updatedAt')
+        .select('name tickets applicationId phone updatedAt companyMulti dateFiled')
         .sort({ updatedAt: -1 });
 
         // 2. Current Day & Overdue Reminders List (Sorted DESC by reminderTime)

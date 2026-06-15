@@ -132,11 +132,40 @@ const Dashboard = () => {
         fetchSourcingChannels();
     }, []);
 
-    const handleOpenTicketEditModal = (candidate: any) => {
+    const handleOpenTicketEditModal = async (candidate: any) => {
         setTicketModalCandidate(candidate);
-        setModalTickets(candidate.tickets || []);
+        
+        let initialTickets = candidate.tickets ? [...candidate.tickets] : [];
+        let initialCompanies = candidate.companyMulti ? [...candidate.companyMulti] : [];
+        
+        try {
+            const interviews = await api.getInterviews({ candidateId: candidate._id });
+            const interviewCompanies = Array.from(new Set(interviews.map((i: any) => i.companyName).filter(Boolean))) as string[];
+            
+            if (interviewCompanies.length > 0) {
+                const mergedCompanies = Array.from(new Set([...initialCompanies, ...interviewCompanies]));
+                initialCompanies = mergedCompanies;
+                
+                if (initialTickets.length === 0) {
+                    const today = new Date().toISOString().split('T')[0];
+                    initialTickets = interviewCompanies.map((companyName: string) => ({
+                        ticketNo: '',
+                        companyName,
+                        uploaddate: today,
+                        expdate: '',
+                        crtdate: '',
+                        type: 'Banca',
+                        portalStatus: 'Pending'
+                    }));
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching candidate interviews to default companies:", err);
+        }
+
+        setModalTickets(initialTickets);
         setModalTicketForm({
-            companyMulti: candidate.companyMulti || [],
+            companyMulti: initialCompanies,
             dateFiled: candidate.dateFiled ? candidate.dateFiled.split('H')[0].split('T')[0] : ''
         });
         setModalSelectedTicketIndices([]);
