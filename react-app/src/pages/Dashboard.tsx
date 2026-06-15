@@ -86,6 +86,48 @@ const isCrtOrExpAlert = (dateStr: string) => {
     }
 };
 
+const calculateTicketDates = (uploaddateStr: string, companyName: string, openJobs: any[]) => {
+    const companyToMatch = companyName?.toLowerCase().trim();
+    const job = openJobs.find(j => j.company?.toLowerCase().trim() === companyToMatch);
+
+    const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
+    const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
+
+    const cleanDateStr = uploaddateStr ? uploaddateStr.split('T')[0].split(' ')[0] : '';
+    const parts = cleanDateStr ? cleanDateStr.split('-') : [];
+
+    let uploadDate: Date;
+    if (parts.length === 3) {
+        uploadDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+        const today = new Date();
+        uploadDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+
+    if (isNaN(uploadDate.getTime())) {
+        return { expdate: '', crtdate: '' };
+    }
+
+    // Expiry Date
+    const expDate = new Date(uploadDate);
+    expDate.setDate(uploadDate.getDate() + expiryDays);
+    const ey = expDate.getFullYear();
+    const em = String(expDate.getMonth() + 1).padStart(2, '0');
+    const ed = String(expDate.getDate()).padStart(2, '0');
+
+    // CRT Date
+    const crtDate = new Date(uploadDate);
+    crtDate.setDate(uploadDate.getDate() + crtDays);
+    const cy = crtDate.getFullYear();
+    const cm = String(crtDate.getMonth() + 1).padStart(2, '0');
+    const cd = String(crtDate.getDate()).padStart(2, '0');
+
+    return {
+        expdate: `${ey}-${em}-${ed}`,
+        crtdate: `${cy}-${cm}-${cd}`
+    };
+};
+
 const Dashboard = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
@@ -107,11 +149,13 @@ const Dashboard = () => {
     const [isModalCompanyDropdownOpen, setIsModalCompanyDropdownOpen] = React.useState(false);
     const [uniqueOpenCompanies, setUniqueOpenCompanies] = React.useState<string[]>([]);
     const [sourcingChannels, setSourcingChannels] = React.useState<string[]>(['Banca', 'Agency', 'Direct']);
+    const [openJobs, setOpenJobs] = React.useState<any[]>([]);
 
     React.useEffect(() => {
         const fetchOpenCompanies = async () => {
             try {
                 const jobs = await api.getJobs({ status: 'Open' });
+                setOpenJobs(jobs);
                 const companies = jobs.map((job: any) => job.company).filter(Boolean);
                 setUniqueOpenCompanies(Array.from(new Set(companies)).sort() as string[]);
             } catch (err) {
@@ -146,18 +190,36 @@ const Dashboard = () => {
                 const mergedCompanies = Array.from(new Set([...initialCompanies, ...interviewCompanies]));
                 initialCompanies = mergedCompanies;
                 
-                if (initialTickets.length === 0) {
-                    const today = new Date().toISOString().split('T')[0];
-                    initialTickets = interviewCompanies.map((companyName: string) => ({
-                        ticketNo: '',
-                        companyName,
-                        uploaddate: today,
-                        expdate: '',
-                        crtdate: '',
-                        type: 'Banca',
-                        portalStatus: 'Pending'
-                    }));
-                }
+                const today = new Date();
+                const uploadDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                
+                interviewCompanies.forEach((companyName: string) => {
+                    const companyMatch = companyName.toLowerCase().trim();
+                    const hasTicket = initialTickets.some(t => t.companyName?.toLowerCase().trim() === companyMatch);
+                    if (!hasTicket) {
+                        const dates = calculateTicketDates(uploadDateStr, companyName, openJobs);
+                        const emptyRowIdx = initialTickets.findIndex(t => !t.companyName?.trim());
+                        if (emptyRowIdx !== -1) {
+                            initialTickets[emptyRowIdx] = {
+                                ...initialTickets[emptyRowIdx],
+                                companyName,
+                                uploaddate: uploadDateStr,
+                                expdate: dates.expdate,
+                                crtdate: dates.crtdate
+                            };
+                        } else {
+                            initialTickets.push({
+                                ticketNo: '',
+                                companyName,
+                                uploaddate: uploadDateStr,
+                                expdate: dates.expdate,
+                                crtdate: dates.crtdate,
+                                type: 'Banca',
+                                portalStatus: 'Pending'
+                            });
+                        }
+                    }
+                });
             }
         } catch (err) {
             console.error("Error fetching candidate interviews to default companies:", err);
@@ -175,19 +237,34 @@ const Dashboard = () => {
     const handleModalUpdateTicket = (index: number, field: string, value: any) => {
         setModalTickets(prev => {
             const updated = [...prev];
-            updated[index] = { ...updated[index], [field]: value };
+            const currentTicket = { ...updated[index], [field]: value };
+            if (field === 'uploaddate' || field === 'companyName') {
+                const company = field === 'companyName' ? value : currentTicket.companyName;
+                const uploadDate = field === 'uploaddate' ? value : currentTicket.uploaddate;
+                const dates = calculateTicketDates(uploadDate, company, openJobs);
+                currentTicket.expdate = dates.expdate;
+                currentTicket.crtdate = dates.crtdate;
+            }
+            updated[index] = currentTicket;
             return updated;
         });
     };
 
     const handleModalAddTicketRow = () => {
-        const today = new Date().toISOString().split('T')[0];
+        const assignedCompanies = new Set(modalTickets.map((t: any) => t.companyName?.toLowerCase().trim()).filter(Boolean));
+        const nextCompany = modalTicketForm.companyMulti.find(c => !assignedCompanies.has(c.toLowerCase().trim())) || '';
+
+        const today = new Date();
+        const uploadDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        
+        const dates = calculateTicketDates(uploadDateStr, nextCompany, openJobs);
+        
         const newTicket = {
             ticketNo: '',
-            companyName: '',
-            uploaddate: today,
-            expdate: '',
-            crtdate: '',
+            companyName: nextCompany,
+            uploaddate: uploadDateStr,
+            expdate: dates.expdate,
+            crtdate: dates.crtdate,
             type: 'Banca',
             portalStatus: 'Pending'
         };
@@ -258,6 +335,68 @@ const Dashboard = () => {
             showToast('Failed to save tickets', 'error');
         }
     };
+
+    // Auto-sync modal tickets with company selection in Dashboard ticket modal
+    React.useEffect(() => {
+        if (!isTicketModalOpen) return;
+        const currentSelected = modalTicketForm.companyMulti || [];
+        const existingTickets = modalTickets || [];
+
+        // Normalize selections for robust comparison
+        const selectedNormalized = new Set(currentSelected.map(c => c.toLowerCase().trim()));
+
+        // Find companies needing new tickets
+        const companiesWithoutTickets = currentSelected.filter(c => {
+            const normalizedC = c.toLowerCase().trim();
+            return !existingTickets.some((t: any) => t.companyName?.toLowerCase().trim() === normalizedC);
+        });
+
+        // Find tickets to remove (associated with deselected companies)
+        const ticketsToRemove = existingTickets.filter((t: any) => {
+            if (!t.companyName) return false; // Keep manually added rows without a company
+            const normalizedT = t.companyName.toLowerCase().trim();
+            return !selectedNormalized.has(normalizedT);
+        });
+
+        if (companiesWithoutTickets.length > 0 || ticketsToRemove.length > 0) {
+            let updatedTickets = [...existingTickets];
+
+            // Add defaults for new companies
+            companiesWithoutTickets.forEach(comp => {
+                const today = new Date();
+                const uploadDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                const dates = calculateTicketDates(uploadDateStr, comp, openJobs);
+
+                // Reuse empty company rows if any
+                const emptyRowIdx = updatedTickets.findIndex(t => !t.companyName?.trim());
+                if (emptyRowIdx !== -1) {
+                    updatedTickets[emptyRowIdx] = {
+                        ...updatedTickets[emptyRowIdx],
+                        companyName: comp,
+                        uploaddate: uploadDateStr,
+                        expdate: dates.expdate,
+                        crtdate: dates.crtdate
+                    };
+                } else {
+                    updatedTickets.push({
+                        ticketNo: '',
+                        companyName: comp,
+                        uploaddate: uploadDateStr,
+                        expdate: dates.expdate,
+                        crtdate: dates.crtdate,
+                        type: 'Banca',
+                        portalStatus: 'Pending'
+                    });
+                }
+            });
+
+            // Filter out old ones
+            updatedTickets = updatedTickets.filter(t => !ticketsToRemove.includes(t));
+
+            setModalTickets(updatedTickets);
+        }
+    }, [modalTicketForm.companyMulti, isTicketModalOpen]);
+
 
     const [startDate, setStartDate] = React.useState<string>(() => {
         const d = new Date();
@@ -964,7 +1103,6 @@ const Dashboard = () => {
                                                         className="table-select company-select"
                                                         value={t.companyName || ''}
                                                         onChange={(e) => handleModalUpdateTicket(idx, 'companyName', e.target.value)}
-                                                        disabled={!t.ticketNo?.trim()}
                                                     >
                                                         <option value="">Select Company</option>
                                                         {modalTicketForm.companyMulti.map(c => <option key={c} value={c}>{c}</option>)}

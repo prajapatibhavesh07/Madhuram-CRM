@@ -365,6 +365,48 @@ const isCrtOrExpAlert = (dateStr: string) => {
     }
 };
 
+const calculateTicketDates = (uploaddateStr: string, companyName: string, openJobs: any[]) => {
+    const companyToMatch = companyName?.toLowerCase().trim();
+    const job = openJobs.find(j => j.company?.toLowerCase().trim() === companyToMatch);
+
+    const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
+    const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
+
+    const cleanDateStr = uploaddateStr ? uploaddateStr.split('T')[0].split(' ')[0] : '';
+    const parts = cleanDateStr ? cleanDateStr.split('-') : [];
+
+    let uploadDate: Date;
+    if (parts.length === 3) {
+        uploadDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    } else {
+        const today = new Date();
+        uploadDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    }
+
+    if (isNaN(uploadDate.getTime())) {
+        return { expdate: '', crtdate: '' };
+    }
+
+    // Expiry Date
+    const expDate = new Date(uploadDate);
+    expDate.setDate(uploadDate.getDate() + expiryDays);
+    const ey = expDate.getFullYear();
+    const em = String(expDate.getMonth() + 1).padStart(2, '0');
+    const ed = String(expDate.getDate()).padStart(2, '0');
+
+    // CRT Date
+    const crtDate = new Date(uploadDate);
+    crtDate.setDate(uploadDate.getDate() + crtDays);
+    const cy = crtDate.getFullYear();
+    const cm = String(crtDate.getMonth() + 1).padStart(2, '0');
+    const cd = String(crtDate.getDate()).padStart(2, '0');
+
+    return {
+        expdate: `${ey}-${em}-${ed}`,
+        crtdate: `${cy}-${cm}-${cd}`
+    };
+};
+
 const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId, onClose, candidateIds = [], onNavigate, initialActivityModal = null }) => {
 
     const { showToast } = useToast();
@@ -931,24 +973,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
         // Recalculate expiry date and CRT date if uploaddate or companyName changes
         if (field === 'uploaddate' || field === 'companyName') {
-            const companyToMatch = (field === 'companyName' ? value : currentTicket.companyName)?.toLowerCase().trim();
-            const job = openJobs.find(j => j.company?.toLowerCase().trim() === companyToMatch);
-
-            const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
-            const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
-
-            const uploadDate = currentTicket.uploaddate ? new Date(currentTicket.uploaddate) : new Date();
-            if (!isNaN(uploadDate.getTime())) {
-                // Calculate Expiry Date
-                const expDate = new Date(uploadDate);
-                expDate.setDate(uploadDate.getDate() + expiryDays);
-                currentTicket.expdate = expDate.toISOString().split('T')[0];
-
-                // Calculate CRT Date
-                const crtDate = new Date(uploadDate);
-                crtDate.setDate(uploadDate.getDate() + crtDays);
-                currentTicket.crtdate = crtDate.toISOString().split('T')[0];
-            }
+            const company = field === 'companyName' ? value : currentTicket.companyName;
+            const uploadDate = field === 'uploaddate' ? value : currentTicket.uploaddate;
+            const dates = calculateTicketDates(uploadDate, company, openJobs);
+            currentTicket.expdate = dates.expdate;
+            currentTicket.crtdate = dates.crtdate;
         }
 
         updatedTickets[index] = currentTicket;
@@ -964,16 +993,27 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
     const handleAddTicketRow = async () => {
         if (!candidate) return;
+        
+        // Find next unassigned company
+        const existingTickets = candidate.tickets || [];
+        const assignedCompanies = new Set(existingTickets.map((t: any) => t.companyName?.toLowerCase().trim()).filter(Boolean));
+        const nextCompany = ticketForm.companyMulti.find(c => !assignedCompanies.has(c.toLowerCase().trim())) || '';
+
+        const today = new Date();
+        const uploadDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        
+        const dates = calculateTicketDates(uploadDateStr, nextCompany, openJobs);
+        
         const newTicket = {
             ticketNo: '',
-            companyName: '',
-            uploaddate: new Date().toISOString().split('T')[0],
-            expdate: '',
-            crtdate: new Date().toISOString().split('T')[0],
+            companyName: nextCompany,
+            uploaddate: uploadDateStr,
+            expdate: dates.expdate,
+            crtdate: dates.crtdate,
             type: 'Banca',
             portalStatus: 'Pending'
         };
-        const updatedTickets = [...(candidate.tickets || []), newTicket];
+        const updatedTickets = [...existingTickets, newTicket];
         setCandidate({ ...candidate, tickets: updatedTickets });
         await api.updateCandidate(candidateId, { tickets: updatedTickets });
     };
@@ -1135,30 +1175,31 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             const hasTicket = currentTickets.some(t => t.companyName?.toLowerCase().trim() === companyMatch);
 
             if (!hasTicket) {
-                const job = openJobs.find(j => j.company?.toLowerCase().trim() === companyMatch);
-                const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
-                const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
-
                 const today = new Date();
-                const uploadDateStr = today.toISOString().split('T')[0];
+                const uploadDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                const dates = calculateTicketDates(uploadDateStr, company, openJobs);
 
-                const expDate = new Date(today);
-                expDate.setDate(today.getDate() + expiryDays);
-                const expDateStr = expDate.toISOString().split('T')[0];
-
-                const crtDate = new Date(today);
-                crtDate.setDate(today.getDate() + crtDays);
-                const crtDateStr = crtDate.toISOString().split('T')[0];
-
-                currentTickets.push({
-                    ticketNo: '', // Manual entry
-                    companyName: company,
-                    uploaddate: uploadDateStr,
-                    expdate: expDateStr,
-                    crtdate: crtDateStr,
-                    type: 'Banca',
-                    portalStatus: 'Pending'
-                });
+                // Reuse empty company rows if any
+                const emptyRowIdx = currentTickets.findIndex(t => !t.companyName?.trim());
+                if (emptyRowIdx !== -1) {
+                    currentTickets[emptyRowIdx] = {
+                        ...currentTickets[emptyRowIdx],
+                        companyName: company,
+                        uploaddate: uploadDateStr,
+                        expdate: dates.expdate,
+                        crtdate: dates.crtdate
+                    };
+                } else {
+                    currentTickets.push({
+                        ticketNo: '', // Manual entry
+                        companyName: company,
+                        uploaddate: uploadDateStr,
+                        expdate: dates.expdate,
+                        crtdate: dates.crtdate,
+                        type: 'Banca',
+                        portalStatus: 'Pending'
+                    });
+                }
                 ticketsChanged = true;
             }
         });
@@ -1215,30 +1256,31 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
 
             // Add defaults for new companies
             companiesWithoutTickets.forEach(comp => {
-                const job = openJobs.find(j => j.company?.toLowerCase().trim() === comp.toLowerCase().trim());
-                const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
-                const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
-
                 const today = new Date();
-                const uploadDateStr = today.toISOString().split('T')[0];
+                const uploadDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+                const dates = calculateTicketDates(uploadDateStr, comp, openJobs);
 
-                const expDate = new Date(today);
-                expDate.setDate(today.getDate() + expiryDays);
-                const expDateStr = expDate.toISOString().split('T')[0];
-
-                const crtDate = new Date(today);
-                crtDate.setDate(today.getDate() + crtDays);
-                const crtDateStr = crtDate.toISOString().split('T')[0];
-
-                updatedTickets.push({
-                    ticketNo: '',
-                    companyName: comp,
-                    uploaddate: uploadDateStr,
-                    expdate: expDateStr,
-                    crtdate: crtDateStr,
-                    type: 'Banca',
-                    portalStatus: 'Pending'
-                });
+                // Reuse empty company rows if any
+                const emptyRowIdx = updatedTickets.findIndex(t => !t.companyName?.trim());
+                if (emptyRowIdx !== -1) {
+                    updatedTickets[emptyRowIdx] = {
+                        ...updatedTickets[emptyRowIdx],
+                        companyName: comp,
+                        uploaddate: uploadDateStr,
+                        expdate: dates.expdate,
+                        crtdate: dates.crtdate
+                    };
+                } else {
+                    updatedTickets.push({
+                        ticketNo: '',
+                        companyName: comp,
+                        uploaddate: uploadDateStr,
+                        expdate: dates.expdate,
+                        crtdate: dates.crtdate,
+                        type: 'Banca',
+                        portalStatus: 'Pending'
+                    });
+                }
             });
 
             // Filter out old ones
@@ -2436,7 +2478,6 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                 className="table-select company-select"
                                                                 value={t.companyName}
                                                                 onChange={(e) => handleUpdateTicket(idx, 'companyName', e.target.value)}
-                                                                disabled={!t.ticketNo?.trim()}
                                                             >
                                                                 <option value="">Select Company</option>
                                                                 {ticketForm.companyMulti.map(c => <option key={c} value={c}>{c}</option>)}
