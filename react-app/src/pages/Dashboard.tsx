@@ -67,9 +67,33 @@ const EmployeeCard = ({ employee }: { employee: any }) => {
     );
 };
 
+const isCrtOrExpAlert = (dateStr: string) => {
+    if (!dateStr) return false;
+    try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return false;
+
+        const today = new Date();
+        const dDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+        const dToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+
+        const diffTime = dToday.getTime() - dDate.getTime();
+        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+
+        return diffDays >= 0 && diffDays <= 2;
+    } catch (e) {
+        return false;
+    }
+};
+
 const Dashboard = () => {
     const { user } = useAuth();
     const { showToast } = useToast();
+
+    const canDeleteTickets = React.useMemo(() => {
+        const role = user?.role?.toLowerCase().trim() || '';
+        return ['super admin', 'admin', 'manager', 'operation manager', 'operations manager'].includes(role);
+    }, [user]);
 
     // Ticket Modal States
     const [isTicketModalOpen, setIsTicketModalOpen] = React.useState(false);
@@ -82,6 +106,7 @@ const Dashboard = () => {
     });
     const [isModalCompanyDropdownOpen, setIsModalCompanyDropdownOpen] = React.useState(false);
     const [uniqueOpenCompanies, setUniqueOpenCompanies] = React.useState<string[]>([]);
+    const [sourcingChannels, setSourcingChannels] = React.useState<string[]>(['Banca', 'Agency', 'Direct']);
 
     React.useEffect(() => {
         const fetchOpenCompanies = async () => {
@@ -93,7 +118,18 @@ const Dashboard = () => {
                 console.error("Error fetching open companies:", err);
             }
         };
+        const fetchSourcingChannels = async () => {
+            try {
+                const options = await api.getOptions();
+                if (options && options.channel) {
+                    setSourcingChannels(options.channel);
+                }
+            } catch (err) {
+                console.error("Error fetching sourcing channels:", err);
+            }
+        };
         fetchOpenCompanies();
+        fetchSourcingChannels();
     }, []);
 
     const handleOpenTicketEditModal = (candidate: any) => {
@@ -807,14 +843,15 @@ const Dashboard = () => {
                     </div>
 
                     {/* Tickets Table */}
-                    <div className="tickets-management-section" style={{ marginTop: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                            <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
-                                <FileTextIcon size={16} /> Tickets Management
-                            </h4>
-                            {modalSelectedTicketIndices.length > 0 && (
+                    <div className="tickets-management-section">
+                        <h4 className="flex-align-center gap-8" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '10px' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontSize: '0.85rem', fontWeight: 700, color: '#1e293b' }}>
+                                <FileTextIcon size={18} /> Tickets Management
+                            </span>
+                            {canDeleteTickets && modalSelectedTicketIndices.length > 0 && (
                                 <button
                                     onClick={handleModalBulkDeleteTickets}
+                                    className="btn-danger-red"
                                     style={{
                                         padding: '4px 10px',
                                         fontSize: '11px',
@@ -831,126 +868,151 @@ const Dashboard = () => {
                                     <TrashIcon size={12} /> Delete Selected ({modalSelectedTicketIndices.length})
                                 </button>
                             )}
-                        </div>
+                        </h4>
 
-                        <div style={{ overflowX: 'auto', border: '1px solid #e2e8f0', borderRadius: '8px' }}>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.8rem' }}>
+                        <div className="modern-editable-table-container">
+                            <table className="modern-editable-table w-full">
                                 <thead>
-                                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                                        <th style={{ width: '40px', padding: '10px', textAlign: 'center' }}>
-                                            <input
-                                                type="checkbox"
-                                                onChange={handleModalSelectAllTickets}
-                                                checked={modalTickets.length > 0 && modalSelectedTicketIndices.length === modalTickets.length}
-                                                style={{ cursor: 'pointer' }}
-                                            />
+                                    <tr>
+                                        <th style={{ width: '40px', textAlign: 'center' }}>
+                                            {canDeleteTickets && (
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={handleModalSelectAllTickets}
+                                                    checked={modalTickets.length > 0 && modalSelectedTicketIndices.length === modalTickets.length}
+                                                    style={{ cursor: 'pointer' }}
+                                                />
+                                            )}
                                         </th>
-                                        <th style={{ padding: '10px' }}>Ticket No</th>
-                                        <th style={{ padding: '10px' }}>Company</th>
-                                        <th style={{ padding: '10px' }}>Upload Date</th>
-                                        <th style={{ padding: '10px' }}>Exp. Date</th>
-                                        <th style={{ padding: '10px' }}>Crt Date</th>
-                                        <th style={{ padding: '10px' }}>Type</th>
-                                        <th style={{ padding: '10px' }}>Status Changes</th>
-                                        <th style={{ padding: '10px', textAlign: 'center' }}>Actions</th>
+                                        <th>Ticket No</th>
+                                        <th>Company</th>
+                                        <th>Upload Date</th>
+                                        <th>Exp. Date</th>
+                                        <th>Crt Date</th>
+                                        <th>Type</th>
+                                        <th>Status Changes</th>
+                                        <th className="text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {modalTickets.map((t: any, idx: number) => (
-                                        <tr key={`modal-ticket-${idx}`} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                                            <td style={{ padding: '10px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={modalSelectedTicketIndices.includes(idx)}
-                                                    onChange={() => handleModalToggleSelectTicket(idx)}
-                                                    style={{ cursor: 'pointer' }}
-                                                />
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <input
-                                                    type="text"
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
-                                                    value={t.ticketNo || ''}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'ticketNo', e.target.value)}
-                                                />
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <select
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', background: '#fff' }}
-                                                    value={t.companyName || ''}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'companyName', e.target.value)}
-                                                    disabled={!t.ticketNo?.trim()}
-                                                >
-                                                    <option value="">Select Company</option>
-                                                    {modalTicketForm.companyMulti.map(c => <option key={c} value={c}>{c}</option>)}
-                                                </select>
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <AppDateInput
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
-                                                    value={t.uploaddate ? t.uploaddate.split('T')[0] : ''}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'uploaddate', e.target.value)}
-                                                />
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <AppDateInput
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
-                                                    value={t.expdate ? t.expdate.split('T')[0] : ''}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'expdate', e.target.value)}
-                                                />
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <AppDateInput
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', boxSizing: 'border-box' }}
-                                                    value={t.crtdate ? t.crtdate.split('T')[0] : ''}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'crtdate', e.target.value)}
-                                                />
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <select
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', background: '#fff' }}
-                                                    value={t.type || 'Banca'}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'type', e.target.value)}
-                                                >
-                                                    <option>Banca</option>
-                                                    <option>Agency</option>
-                                                    <option>Direct</option>
-                                                </select>
-                                            </td>
-                                            <td style={{ padding: '10px' }}>
-                                                <select
-                                                    style={{ border: '1px solid #cbd5e1', borderRadius: '4px', padding: '6px', fontSize: '0.78rem', width: '100%', background: '#fff' }}
-                                                    value={t.portalStatus || 'Pending'}
-                                                    onChange={(e) => handleModalUpdateTicket(idx, 'portalStatus', e.target.value)}
-                                                >
-                                                    <option>Pending</option>
-                                                    <option>Completed</option>
-                                                    <option>In Progress</option>
-                                                </select>
-                                            </td>
-                                            <td style={{ padding: '10px', textAlign: 'center' }}>
-                                                <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                                                    <button
-                                                        onClick={() => handleModalCloneTicket(idx)}
-                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#3b82f6', padding: '4px' }}
-                                                        title="Clone Ticket"
+                                    {modalTickets.map((t: any, idx: number) => {
+                                        const isTicketEmpty = !t.ticketNo?.trim();
+                                        const isExpDateAlert = isCrtOrExpAlert(t.expdate);
+                                        const isCrtDateAlert = isCrtOrExpAlert(t.crtdate);
+                                        const isDateMatch = isExpDateAlert || isCrtDateAlert;
+                                        const isNotUpdated = t.portalStatus !== 'Complete' && t.portalStatus !== 'Completed';
+                                        const isAlertRow = isDateMatch && isNotUpdated;
+
+                                        let trClass = '';
+                                        if (isTicketEmpty) {
+                                            trClass = 'empty-row';
+                                        } else if (isAlertRow) {
+                                            trClass = 'alert-row';
+                                        }
+
+                                        return (
+                                            <tr key={`modal-ticket-${idx}`} className={trClass}>
+                                                <td className="text-center" style={{ verticalAlign: 'middle' }}>
+                                                    {canDeleteTickets && (
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={modalSelectedTicketIndices.includes(idx)}
+                                                            onChange={() => handleModalToggleSelectTicket(idx)}
+                                                            style={{ cursor: 'pointer' }}
+                                                        />
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    <input
+                                                        type="text"
+                                                        className={`table-input ${isTicketEmpty ? 'input-alert-border' : ''}`}
+                                                        value={t.ticketNo || ''}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'ticketNo', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <select
+                                                        className="table-select company-select"
+                                                        value={t.companyName || ''}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'companyName', e.target.value)}
+                                                        disabled={!t.ticketNo?.trim()}
                                                     >
-                                                        <CopyIcon size={14} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleModalDeleteTicket(idx)}
-                                                        style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#ef4444', padding: '4px' }}
-                                                        title="Delete Ticket"
+                                                        <option value="">Select Company</option>
+                                                        {modalTicketForm.companyMulti.map(c => <option key={c} value={c}>{c}</option>)}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <AppDateInput
+                                                        className="table-input"
+                                                        value={t.uploaddate ? t.uploaddate.split('T')[0] : ''}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'uploaddate', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <AppDateInput
+                                                        className={`table-input bg-main ${isExpDateAlert ? 'input-alert-border' : ''}`}
+                                                        value={t.expdate ? t.expdate.split('T')[0] : ''}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'expdate', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <AppDateInput
+                                                        className={`table-input ${isCrtDateAlert ? 'input-alert-border' : ''}`}
+                                                        value={t.crtdate ? t.crtdate.split('T')[0] : ''}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'crtdate', e.target.value)}
+                                                    />
+                                                </td>
+                                                <td>
+                                                    <select
+                                                        className="table-select"
+                                                        value={t.type || 'Banca'}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'type', e.target.value)}
                                                     >
-                                                        <TrashIcon size={14} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                        {sourcingChannels.map((channelName) => (
+                                                            <option key={channelName} value={channelName}>
+                                                                {channelName}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select
+                                                        className="table-select"
+                                                        value={t.portalStatus || 'Pending'}
+                                                        onChange={(e) => handleModalUpdateTicket(idx, 'portalStatus', e.target.value)}
+                                                    >
+                                                        <option>Duplicate</option>
+                                                        <option>Pending</option>
+                                                        <option>Completed</option>
+                                                        <option>In Progress</option>
+                                                    </select>
+                                                </td>
+                                                <td className="text-center">
+                                                    <div className="action-btn-group">
+                                                        <button
+                                                            onClick={() => handleModalCloneTicket(idx)}
+                                                            className="icon-action-btn blue"
+                                                            title="Clone Ticket"
+                                                        >
+                                                            <CopyIcon size={14} />
+                                                        </button>
+                                                        {canDeleteTickets && (
+                                                            <button
+                                                                onClick={() => handleModalDeleteTicket(idx)}
+                                                                className="icon-action-btn red"
+                                                                title="Delete Ticket"
+                                                            >
+                                                                <TrashIcon size={14} />
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                     {modalTickets.length === 0 && (
                                         <tr>
-                                            <td colSpan={9} style={{ padding: '24px', textAlign: 'center', color: '#64748b' }}>
+                                            <td colSpan={9} className="p-24 text-center text-muted text-sm">
                                                 No tickets found. Add one to get started.
                                             </td>
                                         </tr>
@@ -960,18 +1022,7 @@ const Dashboard = () => {
                         </div>
                         <button
                             onClick={handleModalAddTicketRow}
-                            style={{
-                                marginTop: '10px',
-                                padding: '6px 12px',
-                                background: '#f8fafc',
-                                border: '1px dashed #cbd5e1',
-                                borderRadius: '6px',
-                                fontSize: '0.78rem',
-                                fontWeight: 600,
-                                color: '#475569',
-                                cursor: 'pointer',
-                                width: '100%'
-                            }}
+                            className="btn-add-ticket"
                         >
                             + Add New Ticket
                         </button>

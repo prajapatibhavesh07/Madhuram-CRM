@@ -446,6 +446,8 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         ticketNo: '', companyName: '', uploaddate: '', expdate: '', crtdate: '', type: 'Banca', dateFiled: '', companyMulti: [] as string[]
     });
 
+    const [sourcingChannels, setSourcingChannels] = useState<string[]>(['Banca', 'Agency', 'Direct']);
+
     const [checklistForm, setChecklistForm] = useState<Record<string, string>>({
         verifyField: '',
         noPoachInCV: '',
@@ -572,6 +574,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         fetchCandidateData();
         fetchOpenJobs();
         fetchUsers();
+        fetchSourcingChannels();
     }, [candidateId]);
 
     useEffect(() => {
@@ -586,6 +589,17 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             setUsers(data.map((u: any) => ({ _id: u._id, name: u.name, type: 'Employee' })));
         } catch (error) {
             console.error('Failed to fetch users:', error);
+        }
+    };
+
+    const fetchSourcingChannels = async () => {
+        try {
+            const options = await api.getOptions();
+            if (options && options.channel) {
+                setSourcingChannels(options.channel);
+            }
+        } catch (error) {
+            console.error('Failed to fetch sourcing channels:', error);
         }
     };
 
@@ -996,13 +1010,13 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
         try {
             await api.updateCandidate(candidateId, { tickets: updatedTickets, companyMulti: updatedCompanyMulti });
             showToast('Ticket deleted successfully', 'success');
-            
+
             // Automatically delete corresponding scheduled interviews if they exist
             if (ticketToDelete && ticketToDelete.companyName) {
                 const targetCompanyName = ticketToDelete.companyName.toLowerCase().trim();
                 try {
                     const interviews = await api.getInterviews({ candidateId });
-                    const matchingInterviews = interviews.filter((i: any) => 
+                    const matchingInterviews = interviews.filter((i: any) =>
                         i.companyName?.toLowerCase().trim() === targetCompanyName
                     );
                     for (const interview of matchingInterviews) {
@@ -1061,7 +1075,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             // Automatically delete corresponding interviews for each deleted ticket
             try {
                 const interviews = await api.getInterviews({ candidateId });
-                const matchingInterviews = interviews.filter((i: any) => 
+                const matchingInterviews = interviews.filter((i: any) =>
                     i.companyName && companiesToRemove.includes(i.companyName.toLowerCase().trim())
                 );
                 for (const interview of matchingInterviews) {
@@ -1647,16 +1661,16 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
             } else if (type === 'Interview') {
                 // Find the interview details before deleting
                 const interviewToDelete = activities.find(a => a.id === id);
-                
+
                 await api.deleteInterview(id);
 
                 // Automatically remove the corresponding ticket and update companyMulti if it exists
                 if (interviewToDelete && interviewToDelete.companyName) {
                     const targetCompanyName = interviewToDelete.companyName.toLowerCase().trim();
-                    const updatedTickets = (candidate.tickets || []).filter((t: any) => 
+                    const updatedTickets = (candidate.tickets || []).filter((t: any) =>
                         t.companyName?.toLowerCase().trim() !== targetCompanyName
                     );
-                    
+
                     const updatedCompanyMulti = (candidate.companyMulti || []).filter((c: string) => {
                         const normC = c.toLowerCase().trim();
                         if (normC !== targetCompanyName) return true;
@@ -2358,7 +2372,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                 </h4>
 
                                 <div className="modern-editable-table-container">
-                                    <table className="modern-editable-table">
+                                    <table className="modern-editable-table w-full">
                                         <thead>
                                             <tr>
                                                 <th style={{ width: '40px', textAlign: 'center' }}>
@@ -2455,9 +2469,11 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                 value={t.type}
                                                                 onChange={(e) => handleUpdateTicket(idx, 'type', e.target.value)}
                                                             >
-                                                                <option>Banca</option>
-                                                                <option>Agency</option>
-                                                                <option>Direct</option>
+                                                                {sourcingChannels.map((channelName) => (
+                                                                    <option key={channelName} value={channelName}>
+                                                                        {channelName}
+                                                                    </option>
+                                                                ))}
                                                             </select>
                                                         </td>
                                                         <td>
@@ -2466,6 +2482,7 @@ const CandidateProfileView: React.FC<CandidateProfileViewProps> = ({ candidateId
                                                                 value={t.portalStatus}
                                                                 onChange={(e) => handleUpdateTicket(idx, 'portalStatus', e.target.value)}
                                                             >
+                                                                <option>Duplicate</option>
                                                                 <option>Pending</option>
                                                                 <option>Completed</option>
                                                                 <option>In Progress</option>

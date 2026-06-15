@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api, BASE_URL } from '../services/api';
-import { 
+import {
     SearchIcon, BriefcaseIcon, ChevronDownIcon, GripVerticalIcon, FileTextIcon, EditIcon
 } from '../icons';
 import DocumentPreviewModal from '../components/DocumentPreviewModal';
@@ -13,14 +13,14 @@ const isCrtOrExpAlert = (dateStr: string) => {
     try {
         const date = new Date(dateStr);
         if (isNaN(date.getTime())) return false;
-        
+
         const today = new Date();
         const dDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
         const dToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        
+
         const diffTime = dToday.getTime() - dDate.getTime();
         const diffDays = diffTime / (1000 * 60 * 60 * 24);
-        
+
         return diffDays >= 0 && diffDays <= 2;
     } catch (e) {
         return false;
@@ -100,16 +100,16 @@ const OperationDesk = () => {
         const initialTickets = (op.companies || []).map((comp: string) => {
             const existing = candidateTickets.find((t: any) => t.companyName === comp);
             if (existing) return existing;
-            
+
             const job = jobs.find(j => j.company === comp);
             const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
             const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
-            
+
             const uploadDate = new Date();
-            
+
             const expDate = new Date(uploadDate);
             expDate.setDate(expDate.getDate() + expiryDays);
-            
+
             const crtDate = new Date(uploadDate);
             crtDate.setDate(crtDate.getDate() + crtDays);
 
@@ -376,9 +376,9 @@ const OperationDesk = () => {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                                                     <div className="candidate-avatar-mini">
                                                         {candidate.photograph?.fileUrl ? (
-                                                            <img 
-                                                                src={candidate.photograph.fileUrl.startsWith('http') ? candidate.photograph.fileUrl : `${BASE_URL}${candidate.photograph.fileUrl}`} 
-                                                                alt={candidate.name} 
+                                                            <img
+                                                                src={candidate.photograph.fileUrl.startsWith('http') ? candidate.photograph.fileUrl : `${BASE_URL}${candidate.photograph.fileUrl}`}
+                                                                alt={candidate.name}
                                                                 className="candidate-avatar-img"
                                                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                                                             />
@@ -586,16 +586,16 @@ const OperationDesk = () => {
                                                         const companyName = company;
                                                         if (!operationFormData.companies.includes(companyName)) {
                                                             const existingT = (editingOperation.candidateId?.tickets || []).find((t: any) => t.companyName === companyName);
-                                                            
+
                                                             const job = jobs.find(j => j.company === companyName);
                                                             const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
                                                             const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
-                                                            
+
                                                             const uploadDate = new Date();
-                                                            
+
                                                             const expDate = new Date(uploadDate);
                                                             expDate.setDate(expDate.getDate() + expiryDays);
-                                                            
+
                                                             const crtDate = new Date(uploadDate);
                                                             crtDate.setDate(crtDate.getDate() + crtDays);
 
@@ -651,7 +651,7 @@ const OperationDesk = () => {
                         <div style={{ marginBottom: '1.5rem' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.6rem' }}>
                                 <FileTextIcon size={15} />
-                                <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1e293b' }}>Tickets Management</span>
+                                <span style={{ fontWeight: '700', fontSize: '0.9rem', color: '#1e293b' }}>Tickets Management </span>
                             </div>
                             <div style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
                                 <div style={{
@@ -703,8 +703,8 @@ const OperationDesk = () => {
                                             alignItems: 'center',
                                             transition: 'all 0.2s ease',
                                             margin: (isTicketEmpty || isAlertRow) ? '6px 4px' : '0',
-                                            border: isTicketEmpty 
-                                                ? '1px solid #ef4444' 
+                                            border: isTicketEmpty
+                                                ? '1px solid #ef4444'
                                                 : (isAlertRow ? '1px solid #ef4444' : '1px solid transparent'),
                                             borderBottom: (isTicketEmpty || isAlertRow) ? '1px solid #ef4444' : '1px solid #f1f5f9',
                                             borderRadius: (isTicketEmpty || isAlertRow) ? '8px' : '0',
@@ -713,43 +713,43 @@ const OperationDesk = () => {
 
                                         return (
                                             <div key={company} style={rowStyle}>
-                                                <input 
-                                                    type="text" 
-                                                    value={ticket.ticketNo || ''} 
-                                                    onChange={e => updateField('ticketNo', e.target.value)} 
-                                                    placeholder="TKT-001" 
+                                                <input
+                                                    type="text"
+                                                    value={ticket.ticketNo || ''}
+                                                    onChange={e => updateField('ticketNo', e.target.value)}
+                                                    placeholder="TKT-001"
                                                     style={{
                                                         ...inputStyle,
                                                         border: isTicketEmpty ? '1px solid #ef4444' : '1px solid #e2e8f0'
-                                                    }} 
+                                                    }}
                                                 />
-                                                
+
                                                 <div style={{ padding: '4px 7px', background: '#eff6ff', borderRadius: '5px', fontSize: '0.75rem', fontWeight: '600', color: '#1e40af', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={ticket.companyName}>{ticket.companyName}</div>
-                                                
+
                                                 <input type="date" value={ticket.uploaddate || ''} onChange={e => {
                                                     const uploadDateStr = e.target.value;
                                                     const job = jobs.find(j => j.company === ticket.companyName);
-                                                    
+
                                                     const expiryDays = parseInt(job?.managers?.[0]?.expiryDays?.toString() || '30');
                                                     const crtDays = parseInt(job?.managers?.[0]?.crtDays?.toString() || '0');
-                                                    
+
                                                     let expDateStr = ticket.expdate || '';
                                                     let crtDateStr = ticket.crtdate || '';
-                                                    
+
                                                     if (uploadDateStr) {
                                                         const date = new Date(uploadDateStr);
-                                                        
+
                                                         // Calculate Expiry Date
                                                         const expDate = new Date(date);
                                                         expDate.setDate(expDate.getDate() + expiryDays);
                                                         expDateStr = expDate.toISOString().split('T')[0];
-                                                        
+
                                                         // Calculate CRT Date
                                                         const crtDate = new Date(date);
                                                         crtDate.setDate(crtDate.getDate() + crtDays);
                                                         crtDateStr = crtDate.toISOString().split('T')[0];
                                                     }
-                                                    
+
                                                     const newTickets = [...operationFormData.tickets];
                                                     const idx = newTickets.findIndex(t => t.companyName === company);
                                                     if (idx >= 0) {
@@ -759,30 +759,30 @@ const OperationDesk = () => {
                                                     }
                                                     setOperationFormData({ ...operationFormData, tickets: newTickets });
                                                 }} style={inputStyle} />
-                                                
-                                                <input 
-                                                    type="date" 
-                                                    value={ticket.expdate || ''} 
-                                                    readOnly 
-                                                    style={{ 
-                                                        ...inputStyle, 
-                                                        background: '#f1f5f9', 
-                                                        color: ticket.expdate && new Date(ticket.expdate) < new Date() ? '#ef4444' : '#64748b', 
+
+                                                <input
+                                                    type="date"
+                                                    value={ticket.expdate || ''}
+                                                    readOnly
+                                                    style={{
+                                                        ...inputStyle,
+                                                        background: '#f1f5f9',
+                                                        color: ticket.expdate && new Date(ticket.expdate) < new Date() ? '#ef4444' : '#64748b',
                                                         cursor: 'not-allowed',
                                                         border: isExpDateAlert ? '1px solid #ef4444' : '1px solid #e2e8f0'
-                                                    }} 
+                                                    }}
                                                 />
-                                                
-                                                <input 
-                                                    type="date" 
-                                                    value={ticket.crtdate || ''} 
-                                                    onChange={e => updateField('crtdate', e.target.value)} 
+
+                                                <input
+                                                    type="date"
+                                                    value={ticket.crtdate || ''}
+                                                    onChange={e => updateField('crtdate', e.target.value)}
                                                     style={{
                                                         ...inputStyle,
                                                         border: isCrtDateAlert ? '1px solid #ef4444' : '1px solid #e2e8f0'
-                                                    }} 
+                                                    }}
                                                 />
-                                                
+
                                                 <select value={ticket.type || 'Banca'} onChange={e => updateField('type', e.target.value)} style={{ ...inputStyle, padding: '4px 18px 4px 5px' }}>
                                                     <option value="Banca">Banca</option>
                                                     <option value="Agency">Agency</option>
@@ -794,7 +794,7 @@ const OperationDesk = () => {
                                                     <option value="Complete">Complete</option>
                                                     <option value="Duplicate">Duplicate</option>
                                                 </select>
-                                                
+
                                                 <div style={{ textAlign: 'center' }}>
                                                     <button type="button" onClick={() => {
                                                         setOperationFormData(p => ({

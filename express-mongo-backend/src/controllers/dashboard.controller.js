@@ -83,7 +83,10 @@ exports.getStats = async (req, res) => {
             if (subIds && subIds.length > 0) {
                 const allSubIds = [userId, ...subIds];
                 
-                candidateQuery.createdBy = { $in: allSubIds };
+                candidateQuery.$or = [
+                    { createdBy: { $in: allSubIds } },
+                    { assignedOperationManager: { $in: allSubIds } }
+                ];
                 jobQuery.postedBy = { $in: allSubIds };
                 interviewQuery.$or = [
                     { interviewerId: { $in: allSubIds } },
@@ -99,14 +102,16 @@ exports.getStats = async (req, res) => {
                 }).select('candidate');
                 const candidateIdsFromTasks = assignedTasks.map(t => t.candidate);
 
+                const queryConditions = [
+                    { createdBy: userId },
+                    { assignedOperationManager: userId }
+                ];
+
                 if (candidateIdsFromTasks.length > 0) {
-                    candidateQuery.$or = [
-                        { createdBy: userId },
-                        { _id: { $in: candidateIdsFromTasks } }
-                    ];
-                } else {
-                    candidateQuery.createdBy = userId;
+                    queryConditions.push({ _id: { $in: candidateIdsFromTasks } });
                 }
+
+                candidateQuery.$or = queryConditions;
 
                 jobQuery.postedBy = userId;
                 interviewQuery.$or = [
@@ -288,17 +293,28 @@ exports.getStats = async (req, res) => {
         // 1. Pending or Expired Ticket List (Sorted DESC by updatedAt)
         const todayStr = now.toISOString().split('T')[0];
         const pendingTickets = await Candidate.find({
-            ...lifetimeCandidateQuery,
-            tickets: {
-                $elemMatch: {
-                    portalStatus: { $ne: 'Completed' },
-                    ticketNo: { $in: [null, ""] },
+            $and: [
+                lifetimeCandidateQuery,
+                {
                     $or: [
-                        { portalStatus: 'Pending' },
-                        { expdate: { $lt: todayStr } }
+                        {
+                            tickets: {
+                                $elemMatch: {
+                                    portalStatus: { $ne: 'Completed' },
+                                    ticketNo: { $in: [null, ""] },
+                                    $or: [
+                                        { portalStatus: 'Pending' },
+                                        { expdate: { $lt: todayStr } }
+                                    ]
+                                }
+                            }
+                        },
+                        { tickets: { $size: 0 } },
+                        { tickets: { $exists: false } },
+                        { tickets: null }
                     ]
                 }
-            }
+            ]
         })
         .select('name tickets applicationId phone updatedAt')
         .sort({ updatedAt: -1 });

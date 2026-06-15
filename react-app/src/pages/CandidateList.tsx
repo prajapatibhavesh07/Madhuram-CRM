@@ -418,7 +418,7 @@ const CandidateList = () => {
         return saved ? JSON.parse(saved) : { left: [], right: [] };
     });
     const [headerMenu, setHeaderMenu] = useState<{ key: string, x: number, y: number, submenu?: 'pin' | 'add' } | null>(null);
-    const [rowMenu, setRowMenu] = useState<{ candidate: Candidate, x: number, y: number, type?: 'icon' | 'context' } | null>(null);
+    const [rowMenu, setRowMenu] = useState<{ candidate: Candidate, x: number, y: number, type?: 'icon' | 'context', openUpward?: boolean } | null>(null);
     const [columnPicker, setColumnPicker] = useState<{ index: number, x: number, y: number } | null>(null);
     const [resizingCol, setResizingCol] = useState<string | null>(null);
     const [columnSearchQuery, setColumnSearchQuery] = useState('');
@@ -867,7 +867,15 @@ const CandidateList = () => {
                             onClick={(e) => {
                                 e.stopPropagation();
                                 const rect = e.currentTarget.getBoundingClientRect();
-                                setRowMenu({ candidate, x: rect.left, y: rect.bottom, type: 'icon' });
+                                const spaceBelow = window.innerHeight - rect.bottom;
+                                const openUpward = spaceBelow < 400;
+                                setRowMenu({
+                                    candidate,
+                                    x: rect.left,
+                                    y: openUpward ? rect.top : rect.bottom,
+                                    type: 'icon',
+                                    openUpward
+                                });
                             }}
                             title="More Actions"
                         >
@@ -1726,7 +1734,14 @@ const CandidateList = () => {
                                                     className="modern-table-row"
                                                     onContextMenu={(e) => {
                                                         e.preventDefault();
-                                                        setRowMenu({ candidate, x: e.clientX, y: e.clientY, type: 'context' });
+                                                        const openUpward = (window.innerHeight - e.clientY) < 400;
+                                                        setRowMenu({
+                                                            candidate,
+                                                            x: e.clientX,
+                                                            y: e.clientY,
+                                                            type: 'context',
+                                                            openUpward
+                                                        });
                                                     }}
                                                 >
                                                     <td className="modern-td-checkbox">
@@ -1780,7 +1795,14 @@ const CandidateList = () => {
                                             onClick={() => setViewingCandidate(candidate)}
                                             onContextMenu={(e) => {
                                                 e.preventDefault();
-                                                setRowMenu({ candidate, x: e.clientX, y: e.clientY, type: 'context' });
+                                                const openUpward = (window.innerHeight - e.clientY) < 400;
+                                                setRowMenu({
+                                                    candidate,
+                                                    x: e.clientX,
+                                                    y: e.clientY,
+                                                    type: 'context',
+                                                    openUpward
+                                                });
                                             }}
                                         >
                                             <div className="candidate-card-header">
@@ -2917,8 +2939,14 @@ const CandidateList = () => {
                     className="row-actions-container animate-fade-in"
                     style={{
                         position: 'fixed',
-                        top: rowMenu.y + (rowMenu.type === 'context' ? 0 : 5),
-                        left: rowMenu.type === 'context' ? rowMenu.x : rowMenu.x - 120,
+                        left: Math.max(10, Math.min(window.innerWidth - 230, rowMenu.type === 'context' ? rowMenu.x : rowMenu.x - 120)),
+                        ...(rowMenu.openUpward ? {
+                            bottom: (window.innerHeight - rowMenu.y) + (rowMenu.type === 'context' ? 0 : 5) + 'px',
+                            top: 'auto'
+                        } : {
+                            top: rowMenu.y + (rowMenu.type === 'context' ? 0 : 5) + 'px',
+                            bottom: 'auto'
+                        }),
                         zIndex: 3000,
                         background: 'white',
                         borderRadius: '8px',
